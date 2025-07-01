@@ -5,3 +5,5 @@ void blink_led();
 void setup_wifi();
 void reconnect();
 void setup();
+void setup_mqtt();
+void loop_mqtt();
