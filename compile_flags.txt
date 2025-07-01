@@ -1,6 +1,13 @@
+-I/home/toastycommand/Desktop/zot_plug/mqtt_client_esp
+-I/home/toastycommand/.arduino15/packages/esp32/tools/esp32-arduino-libs/idf-release_v5.4-2f7dcd86-v1/esp32/qio_qspi/include
 -I/home/toastycommand/.arduino15/packages/esp32/hardware/esp32/3.2.0/cores/esp32
 -I/home/toastycommand/.arduino15/packages/esp32/hardware/esp32/3.2.0/variants/esp32
+-I/home/toastycommand/.arduino15/packages/esp32/hardware/esp32/3.2.0/libraries/WiFi/src
+-I/home/toastycommand/.arduino15/packages/esp32/hardware/esp32/3.2.0/libraries/Network/src
+-I/home/toastycommand/Arduino/libraries/PubSubClient/src
+
 -DARDUINO=10607
 -DARDUINO_ARCH_ESP32
+-DARDUINO_ESP32_DEV
 -DESP32
 

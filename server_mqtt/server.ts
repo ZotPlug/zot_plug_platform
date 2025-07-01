@@ -5,7 +5,7 @@ const broker = new Aedes();
 
 const server = net.createServer(broker.handle);
 
-server.listen(1883, () => {
+server.listen(1883, '0.0.0.0', () => {
 	console.log('Aedes MQTT broker running on port 1883');
 });
 
