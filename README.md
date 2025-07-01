@@ -1,7 +1,7 @@
 
 # ZotPlug Firmware
 
-Firmware for the ZotPlug embedded system, powered by the ESP32 microcontroller.
+Firmware for the ZotPlug embedded system.
 
 ## Dependencies
 
