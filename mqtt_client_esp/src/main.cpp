@@ -3,10 +3,10 @@
 #include <PubSubClient.h>
 #include "../main.h"
 
-const char* ssid = "SpectrumSetup-C9";
-const char* password = "swiftbread735";
-const char* mqtt_server = "192.168.1.146";  // Example: "192.168.1.5"
-const int ledPin_external = 22;
+const char* ssid = "YOUR_NETWORK_USER";
+const char* password = "YOUR_WIFI_PASS";
+const char* mqtt_server = "YOUR_LOCAL_IP";  // Example: "192.168.1.5"
+const int ledPin_external = 2;
 const int button_input = 23;
 
 WiFiClient espClient;
@@ -42,31 +42,24 @@ void reconnect() {
   }
 }
 
-void setup_mqtt() {
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-}
-
-void loop_mqtt() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
-  client.publish("test/topic", "Hello from ESP32");
-  delay(5000);
-}
-
 void init_system(){
-	pinMode(ledPin_external, OUTPUT);
+	Serial.begin(115200);
+	setup_wifi();
+	client.setServer(mqtt_server, 1883);
+  	pinMode(ledPin_external, OUTPUT);
 	pinMode(button_input, INPUT);
 }
 
-void blink_led(){
+void loop_system(){
+	if (!client.connected()) {
+	  reconnect();
+	}
+	client.loop();
 	if(digitalRead(button_input) == HIGH){
+		client.publish("test/topic", "Hello from ESP32");
 		digitalWrite(ledPin_external, HIGH);
-		delay(3000);
+		delay(500);
 		digitalWrite(ledPin_external, LOW);
-		delay(3000);
+		delay(500);
 	}
 }
