@@ -1,13 +1,7 @@
 
 # ZotPlug Firmware
 
-Firmware for the ZotPlug embedded system, powered by the ESP32 microcontroller.
-
-## Tech Stack
-
-- C++ (Arduino Framework)
-- PubSubClient - Lightweight MQTT client for ESP32
-- WiFi - Native ESP32 WiFi stack
+Firmware for the ZotPlug embedded system.
 
 ## Dependencies
 
