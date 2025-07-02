@@ -3,7 +3,7 @@
 #include <PubSubClient.h>
 #include "../main.h"
 
-const char* ssid = "YOUR_NETWORK_USER";
+const char* ssid = "YOUR_WIFI_USER";
 const char* password = "YOUR_WIFI_PASS";
 const char* mqtt_server = "YOUR_LOCAL_IP";  // Example: "192.168.1.5"
 const int ledPin_external = 2;
