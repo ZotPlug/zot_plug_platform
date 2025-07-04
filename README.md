@@ -10,6 +10,7 @@ Firmware for the ZotPlug embedded system.
 - PubSubClient and EmonLib Arduino libraries
 - MQTT broker (e.g., Aedes) running on your local network
 - Serial monitor tool (arduino-cli monitor, minicom, etc.)
+- mqtt-pattern node.js package
 
 
 ## Flashing & Monitoring
