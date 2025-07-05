@@ -7,7 +7,7 @@
 /* Network Config */
 const char* ssid = "YOUR_WIFI_USER";
 const char* password = "YOUR_WIFI_PASS";
-const char* mqtt_server = "192.168.1.146";
+const char* mqtt_server = "YOUR_LOCAL/PUB_IP";
 
 /* Client Config */
 const char* client_id = "zot_plug_000001";
@@ -43,7 +43,7 @@ void mqttTask(void * parameter){
 	connect_setup_mqtt(ssid, password, mqtt_server, 1883, fn_on_message_received);
 	for(;;){
 		check_maintain_mqtt_connection(client_id, client_user, client_pass, client_subscribe_topic); 
-		vTaskDelay(100 / portTICK_PERIOD_MS);
+		vTaskDelay(500 / portTICK_PERIOD_MS);
 	}
 }
 

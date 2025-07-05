@@ -3,7 +3,7 @@
 
 WiFiClient espClient;
 void setup_wifi(const char *ssid, const char *password){
-  delay(10);
+  vTaskDelay(10 / portTICK_PERIOD_MS);
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -11,7 +11,7 @@ void setup_wifi(const char *ssid, const char *password){
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print(".");
   }
 
@@ -29,7 +29,7 @@ void reconnect(const char *client_id, const char *client_user, const char *clien
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      delay(2000);
+      vTaskDelay(500 / portTICK_PERIOD_MS);
     }
   }
 }

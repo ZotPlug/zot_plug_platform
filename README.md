@@ -1,4 +1,3 @@
-
 # ZotPlug Firmware
 
 Firmware for the ZotPlug embedded system.
