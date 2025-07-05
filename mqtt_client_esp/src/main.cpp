@@ -5,8 +5,8 @@
 #include <PubSubClient.h>
 
 /* Network Config */
-const char* ssid = "SpectrumSetup-C9";
-const char* password = "swiftbread735";
+const char* ssid = "YOUR_WIFI_USER";
+const char* password = "YOUR_WIFI_PASS";
 const char* mqtt_server = "192.168.1.146";
 
 /* Client Config */
