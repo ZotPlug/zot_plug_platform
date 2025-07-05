@@ -14,7 +14,7 @@ const char* client_id = "zot_plug_000001";
 const char* client_user = "zot_plug_000001";
 const char* client_pass =  "secret01";
 const char* client_subscribe_topic = "plug/plug_000001/control/#";
-const char* client_to_server_topic = "plug/plug_000001/data";
+const char* client_publish_topic = "plug/plug_000001/data";
 
 /* Global Pin Config */
 const int ledPin_external = 22;
@@ -55,7 +55,7 @@ void hardwareTask(void * parameter){
 
 	for(;;){
 		if(digitalRead(button_input) == HIGH){
-			publish_message(client_to_server_topic, "65w", 50);
+			publish_message(client_publish_topic, "65w", 50);
 			digitalWrite(ledPin_internal , HIGH);
 			vTaskDelay(500 / portTICK_PERIOD_MS);
 			digitalWrite(ledPin_internal, LOW);
