@@ -1,10 +1,13 @@
 #include "main.h"
 
 void setup(){
-  init_system();
-  Serial.println("ESP32 Serial Test");
+  Serial.begin(115200);
+  // Create MQTT task on Core 0
+  xTaskCreatePinnedToCore(mqttTask, "MQTT Task", 4096, NULL, 1, NULL, 0);
+
+  // Create Button/Hardware task on Core 1
+  xTaskCreatePinnedToCore(hardwareTask, "Button Task", 4096, NULL, 1, NULL, 1);
 }
 
 void loop(){
-  loop_system();
 }

@@ -1,4 +1,4 @@
 #pragma once
 
-void init_system();
-void loop_system();
+void mqttTask(void * parameter);
+void hardwareTask(void * parameter);
