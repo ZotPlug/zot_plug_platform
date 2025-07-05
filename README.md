@@ -11,7 +11,6 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
 - Serial monitor tool (arduino-cli monitor, minicom, etc.)
 - mqtt-pattern node.js package
 
-
 ## Flashing & Monitoring
 
 ```bash
@@ -19,6 +18,24 @@ arduino-cli compile --fqbn esp32:esp32:esp32 .
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 .
 arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 ```
+## 🛠️ Hardware Development Workflow
+
+1. **Update Network Config**  
+   Open `./infra/broker_mqtt/server.ts` and update your network credentials.
+
+2. **Run the MQTT Broker**  
+   From the project root, run:
+
+   ```bash
+   npx tsx ./infra/broker_mqtt/server.ts
+   ```
+3. **Develop Firmware**
+   Navigate to:
+   ```bash
+   ./esp_client/src
+   ```
+4. **Flash & Test**
+   Reflash the ESP32 and test against your local broker.
 
 ## 📡 Network Notes
 
