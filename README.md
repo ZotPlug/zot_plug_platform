@@ -1,7 +1,7 @@
 
 # ZotPlug Firmware
 
-Firmware for the ZotPlug embedded system.
+Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. (Senior Project)
 
 ## Dependencies
 
