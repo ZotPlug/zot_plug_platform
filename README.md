@@ -34,7 +34,7 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    ```bash
    ./esp_client/src
    ```
-4. **Flash & Test**
+4. **Flash & Test**  
    Reflash the ESP32 and test against your local broker.
 
 ## 📡 Network Notes
