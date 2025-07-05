@@ -1,7 +1,7 @@
 
 # ZotPlug Firmware
 
-Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. (Senior Project)
+Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. 
 
 ## Dependencies
 
