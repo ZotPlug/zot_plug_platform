@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "noEmit": true,
+    "strict": true,
+    "removeComments": true,
+    "typeRoots" : ["./", "../node_modules/@types/"]
+  },
+  "include": [
+    "../test/types/*.test-d.ts",
+    "./*.d.ts",
+    "../aedes.d.ts"
+  ]
+}
