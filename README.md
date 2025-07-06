@@ -1,5 +1,3 @@
-# Testing. Prabhav
-
 # ZotPlug Firmware
 
 Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. 
