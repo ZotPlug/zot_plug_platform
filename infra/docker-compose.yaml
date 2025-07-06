@@ -17,6 +17,15 @@ services:
     depends_on:
       - postgres
 
+  cron:
+    build: ./cron
+    container_name: cron
+    volumes:
+      - ~/pg_db/backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:alpine
     container_name: pg_db
