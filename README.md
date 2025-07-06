@@ -20,7 +20,20 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 ```
 ## 🛠️ Hardware Development Workflow
 
-1. **Update Network Config**  
+### **Pre-requisites**  
+1. Install **Node.js** and **npm**  
+   [https://docs.npmjs.com/downloading-and-installing-node-js-and-npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+
+2. Navigate to the broker directory  
+   ```bash
+   cd ./zot_plug/infra/broker_mqtt
+   ```
+
+3. Install project dependencies  
+   ```bash
+   npm install
+   ```
+---1. **Update Network Config**  
    Open `./infra/broker_mqtt/server.ts` and update your network credentials.
 
 2. **Run the MQTT Broker**  
