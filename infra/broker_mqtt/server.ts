@@ -1,9 +1,10 @@
-import Aedes, { Client, PublishPacket } from 'aedes';
+import Aedes, { Client, PublishPacket } from 'aedes'
 import { matches } from 'mqtt-pattern'
-import net from 'net';
+import net from 'net'
+
 /* START: MQTT Broker Config & authentication */
-const broker = new Aedes();
-const server = net.createServer(broker.handle);
+const broker = new Aedes()
+const server = net.createServer(broker.handle)
 // Simple user ACL ( Replace with db in prod + hashed/radnom generated paswords )
 // Create bashh script called "reg_new_plug":
 // That creates a unique client code, i.e: Hard set creds before MCU flash.
@@ -11,37 +12,39 @@ const server = net.createServer(broker.handle);
 const users = {
 	'zot_plug_000001': { password: 'secret01', allowedPublish: ['plug/plug_000001/data'], allowedSubscribe: ['plug/plug_000001/control/#'] },
 	'admin': { password: 'adminpass', allowedPublish: ['#'], allowedSubscribe: ['#'] },  // full access
-};
+}
 
 server.listen(1883, '0.0.0.0', () => {
-	console.log('Aedes MQTT broker running on port 1883');
-});
+	console.log('Aedes MQTT broker running on port 1883')
+})
 
 broker.authenticate = (client, username, password, callback) => {
 	if (!username) {
-		console.log('Authentication failed: Missing username');
-		return callback(null, false);
+		console.log('Authentication failed: Missing username')
+		return callback(null, false)
 	}
 
-	const user = users[username];
+	const user = users[username]
 	if (user && password?.toString() === user.password) {
-		console.log(`Client ${username} authenticated`);
-		client['username'] = username;  // store username for later ACL checks
-		return callback(null, true);
+		console.log(`Client ${username} authenticated`)
+		client['username'] = username  // store username for later ACL checks
+		return callback(null, true)
 	}
 
-	console.log(`Authentication failed for ${username}`);
-	return callback(null, false);
+	console.log(`Authentication failed for ${username}`)
+	return callback(null, false)
 }
+
 function topicAllowed(topic: string, allowedTopics: string[]) {
-	return allowedTopics.some(allowed => matches(allowed, topic));
+	return allowedTopics.some(allowed => matches(allowed, topic))
 }
+
 broker.authorizeSubscribe = (client, sub, callback) => {
 	const username = client['username']
 	const user = users[username]
 
 	if (user && topicAllowed(sub.topic, user.allowedSubscribe)) {
-		return callback(null, sub);
+		return callback(null, sub)
 	}
 	console.log(`Subscribe denied: ${username} to topic ${sub.topic}`)
 	return callback(new Error('Subscribe not allowed'))
@@ -54,7 +57,7 @@ const test_payload = "Test test payload"
 
 function publish_to_topic(topic: string, payload: string, client: Client | null) {
 	if (client) {
-		setTimeout(() => { }, 2000);
+		setTimeout(() => { }, 2000)
 		broker.publish({
 			topic,
 			payload: Buffer.from(payload),
@@ -63,19 +66,19 @@ function publish_to_topic(topic: string, payload: string, client: Client | null)
 			cmd: 'publish',
 			dup: false
 		}, (err) => {
-			if (err) console.error('Error publishing: ', err);
-		});
+			if (err) console.error('Error publishing: ', err)
+		})
 	}
 }
 
 broker.on('client', (client: Client) => {
-	console.log('Client connected:', client?.id);
-});
+	console.log('Client connected:', client?.id)
+})
 
 broker.on('publish', (packet: PublishPacket, client: Client | null) => {
 	console.log(client ? `Recieved Packet from: ${client.id} ${packet.payload.toString()}` : "")
 	publish_to_topic(test_topic, test_payload, client)
-});
+})
 /* END: General Purpose MQTT functions */
 
 
