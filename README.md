@@ -35,7 +35,7 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    ```
 ### **Dev-Steps**  
 1. **Update Network Config**  
-   Open `./infra/broker_mqtt/server.ts` and update your network credentials.
+   Open `./esp_client/src/main.cpp` and update your network credentials.
 
 2. **Run the MQTT Broker**  
    From the project root, run:
