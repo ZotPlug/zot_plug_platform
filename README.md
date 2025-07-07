@@ -24,9 +24,9 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 1. Install **Node.js** and **npm**  
    [https://docs.npmjs.com/downloading-and-installing-node-js-and-npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
-2. Navigate to the broker directory  
+2. Navigate to the broker directory ( From Project Root )
    ```bash
-   cd ./zot_plug/infra/broker_mqtt
+   cd ./infra/broker_mqtt
    ```
 
 3. Install project dependencies  
