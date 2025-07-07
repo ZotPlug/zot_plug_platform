@@ -33,7 +33,7 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    ```bash
    npm install
    ```
----
+### **Dev-Stepss**  
 1. **Update Network Config**  
    Open `./infra/broker_mqtt/server.ts` and update your network credentials.
 
