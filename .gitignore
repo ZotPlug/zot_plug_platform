@@ -1,3 +1,10 @@
-infra/pg_db/pgdata/
+# General
 .DS_Store
 
+# PostgreSQL data
+infra/pg_db/pgdata/
+
+# Node.js files (scoped to infra/broker_mqtt/)
+infra/broker_mqtt/node_modules/
+infra/broker_mqtt/package-lock.json
+infra/broker_mqtt/package.json
