@@ -11,6 +11,10 @@ const server = net.createServer(broker.handle)
 // Also creates a new entry in our device db. That adds to the ACL bellow.
 const users = {
 	'zot_plug_000001': { password: 'secret01', allowedPublish: ['plug/plug_000001/data'], allowedSubscribe: ['plug/plug_000001/control/#'] },
+	'zot_plug_000002': { password: 'secret02', allowedPublish: ['plug/plug_000002/data'], allowedSubscribe: ['plug/plug_000002/control/#'] },
+	'zot_plug_000003': { password: 'secret03', allowedPublish: ['plug/plug_000003/data'], allowedSubscribe: ['plug/plug_000003/control/#'] },
+	'zot_plug_000004': { password: 'secret04', allowedPublish: ['plug/plug_000004/data'], allowedSubscribe: ['plug/plug_000004/control/#'] },
+	'zot_plug_000005': { password: 'secret05', allowedPublish: ['plug/plug_000005/data'], allowedSubscribe: ['plug/plug_000005/control/#'] },
 	'admin': { password: 'adminpass', allowedPublish: ['#'], allowedSubscribe: ['#'] },  // full access
 }
 
