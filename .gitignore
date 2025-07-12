@@ -6,8 +6,6 @@ infra/pg_db/pgdata/
 
 # Node.js files (scoped to infra/broker_mqtt/)
 infra/broker_mqtt/node_modules/
-infra/broker_mqtt/package-lock.json
-infra/broker_mqtt/package.json
 
 # VS Code C++ configurations
 .vscode/c_cpp_properties.json
