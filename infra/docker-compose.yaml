@@ -10,7 +10,9 @@ services:
       - postgres
 
   api:
-    build: ./rest_api
+    build:
+      context: .
+      dockerfile: rest_api/Dockerfile
     container_name: rest_api
     ports:
       - "3000:3000"

@@ -1,26 +1,32 @@
-import { Client } from 'pg';
+import pool from './db_config'
 
-const client = new Client({
-	host: 'localhost',
-	port: 5432,
-	user: 'myuser',
-	password: 'mypassword',
-	database: 'mydb',
-});
-
-const run = async (): Promise<void> => {
+export const run = async (): Promise<void> => {
+	const client = await pool.connect()
 	try {
-		await client.connect();
-		console.log('Connected to Postgres!');
-
-		const res = await client.query('SELECT NOW()');
-		console.log(res.rows);
+		const result = await client.query('SELECT NOW()')
+		console.log('Query result:', result.rows)
 	} catch (err) {
-		console.error('Connection error', err);
+		console.error('Query error:', err)
 	} finally {
-		await client.end();
+		client.release()
 	}
-};
+}
 
-run();
+export const test = async (): Promise<object | null> => {
+	const client = await pool.connect()
+	try {
+		const result = await client.query('SELECT NOW()')
+		console.log('Query result:', result.rows)
+		return result.rows
+	} catch (err) {
+		console.error('Query error:', err)
+		return null
+	} finally {
+		client.release()
+	}
+}
+
+(async function main() {
+	await run()
+})()
 

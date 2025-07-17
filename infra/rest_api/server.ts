@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express'
+import { test } from '../pg_db/postgres_actions'
 
 const app = express()
 const PORT = 3000;
@@ -9,9 +10,13 @@ app.get('/', (req: Request, res: Response) => {
 	res.send('Ello from node.js rest server!')
 })
 
-app.post('api/data', (req: Request, res: Response) => {
+app.post('/api/data', (req: Request, res: Response) => {
 	console.log('Recieved: ', req.body)
 	res.json({ message: 'Data received', yourData: req.body })
+})
+
+app.get('/api/data/query', async (req: Request, res: Response) => {
+	res.json({ message: "Query Recieved", yourData: await test() })
 })
 
 app.listen(PORT, '0.0.0.0', () => {
