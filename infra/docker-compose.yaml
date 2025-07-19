@@ -1,19 +1,39 @@
 services:
+  nginx:
+    build: ./nginx
+    container_name: nginx
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+    environment:
+      - FRONTEND_HOST=frontend
+    networks:
+      - zotplug_net
+    depends_on:
+      - frontend
+
   frontend:
     image: zotpluguci/zot_plug_frontend:beta
     container_name: zot_plug_frontend
     profiles: ["prod"]
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - BASE_URL=http://api:4000
     restart: unless-stopped
+    networks:
+      - zotplug_net
+    depends_on:
+      - api
+      - postgres
 
   broker:
     build: ./broker_mqtt
     container_name: broker_mqtt
     ports:
-      - "1883:1883"
+      - "127.0.0.1:1883:1883"
+    networks:
+      - zotplug_net
     depends_on:
       - postgres
 
@@ -23,7 +43,9 @@ services:
       dockerfile: rest_api/Dockerfile
     container_name: rest_api
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
+    networks:
+      - zotplug_net
     depends_on:
       - postgres
 
@@ -33,6 +55,8 @@ services:
     volumes:
       - ~/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - zotplug_net
     depends_on:
       - postgres
 
@@ -44,7 +68,13 @@ services:
       - POSTGRES_PASSWORD=mypassword
       - POSTGRES_DB=mydb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
+    networks:
+      - zotplug_net
     volumes:
       - ~/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+networks:
+  zotplug_net:
+    driver: bridge

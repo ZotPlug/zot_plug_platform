@@ -19,6 +19,6 @@ COPY pg_db ./pg_db/
 
 # Start from /rest_api/src
 WORKDIR /rest_api/src
-EXPOSE 3000
+EXPOSE 4000
 CMD ["npx", "tsx", "server.ts"]
 
