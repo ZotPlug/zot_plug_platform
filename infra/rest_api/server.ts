@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express'
 import { test } from '../pg_db/postgres_actions'
 
 const app = express()
-const PORT = 3000;
+const PORT = 4000;
 
 app.use(express.json())
 

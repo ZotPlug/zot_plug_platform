@@ -1,6 +1,14 @@
-version: '3.8'
-
 services:
+  frontend:
+    image: zotpluguci/zot_plug_frontend:beta
+    container_name: zot_plug_frontend
+    profiles: ["prod"]
+    ports:
+      - "3000:3000"
+    environment:
+      - BASE_URL=http://api:4000
+    restart: unless-stopped
+
   broker:
     build: ./broker_mqtt
     container_name: broker_mqtt
@@ -15,7 +23,7 @@ services:
       dockerfile: rest_api/Dockerfile
     container_name: rest_api
     ports:
-      - "3000:3000"
+      - "4000:4000"
     depends_on:
       - postgres
 
