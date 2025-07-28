@@ -42,8 +42,21 @@ services:
       context: .
       dockerfile: rest_api/Dockerfile
     container_name: rest_api
+    profiles: ["prod"]
     ports:
       - "127.0.0.1:4000:4000"
+    networks:
+      - zotplug_net
+    depends_on:
+      - postgres
+
+  api-dev:
+    build:
+      context: .
+      dockerfile: rest_api/Dockerfile
+    container_name: rest_api_dev
+    ports:
+      - "4000:4000"
     networks:
       - zotplug_net
     depends_on:
