@@ -6,7 +6,7 @@
 
 /* Network Config */
 const char* ssid = "Velocity Wi-Fi";
-const char* password = "fymmuhif";
+const char* password = "hdoufroy";
 const char* mqtt_server = "10.10.243.7";
 
 /* Client Config */
