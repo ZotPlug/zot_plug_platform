@@ -18,6 +18,26 @@ arduino-cli compile --fqbn esp32:esp32:esp32 .
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 .
 arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 ```
+## 💻⚙️ Software Development Workflow
+
+### **Pre-requisites**  
+1. Install **Docker**
+   [Follow the official instructions for your platform](https://docs.docker.com/engine/install/#supported-platforms)
+
+### **Dev-Steps**  
+1. **Navigate to the backend infrastructure directory**
+   ```bash
+   cd ./zot_plug/infra
+   ```
+
+2. **Start the development stack**
+   Run with the `dev` profile to launch only development-specific containers:
+
+   ```bash
+   docker compose --profile dev up
+   ```
+   > This will start services like `api-dev`, `postgres`, and any other containers tagged with `profiles: ["dev"]`.
+
 ## 🛠️ Hardware Development Workflow
 
 ### **Pre-requisites**  
