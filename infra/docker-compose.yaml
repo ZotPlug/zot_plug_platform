@@ -5,8 +5,11 @@ services:
     profiles: ["prod"]
     ports:
       - "80:80"
+      - "4000:4000"
     environment:
       - FRONTEND_HOST=frontend
+      - BROKER_HOST=broker 
+      - API_HOST=api
     networks:
       - zotplug_net
     depends_on:
@@ -16,8 +19,8 @@ services:
     image: zotpluguci/zot_plug_frontend:beta
     container_name: zot_plug_frontend
     profiles: ["prod"]
-    ports:
-      - "127.0.0.1:3000:3000"
+    expose:
+      - "3000"
     environment:
       - BASE_URL=http://api:4000
     restart: unless-stopped
@@ -31,7 +34,7 @@ services:
     build: ./broker_mqtt
     container_name: broker_mqtt
     ports:
-      - "127.0.0.1:1883:1883"
+      - "1883:1883"
     networks:
       - zotplug_net
     depends_on:
@@ -43,8 +46,8 @@ services:
       dockerfile: rest_api/Dockerfile
     container_name: rest_api
     profiles: ["prod"]
-    ports:
-      - "127.0.0.1:4000:4000"
+    expose:
+      - "4000"
     networks:
       - zotplug_net
     depends_on:
@@ -55,6 +58,7 @@ services:
       context: .
       dockerfile: rest_api/Dockerfile
     container_name: rest_api_dev
+    profiles: ["dev"]
     ports:
       - "4000:4000"
     networks:
