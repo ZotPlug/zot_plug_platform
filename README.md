@@ -80,7 +80,7 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 For complete setup instructions, see the [Setup Guide on Google Docs](https://docs.google.com/document/d/1jFlQuHnFwy8aJPPMJ6DQvYgvtMj_6Ua5th_mMhYTuXo/edit?usp=sharing).
 
 ## Diagrams & Architecture
-![Infra Diagram](diagrams/docker_network.drawio.png)
+![Infra Diagram](diagrams/docker_network_diagram_v2.drawio.png)
 
 
 
