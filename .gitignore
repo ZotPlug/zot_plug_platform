@@ -4,8 +4,8 @@
 # PostgreSQL data
 infra/pg_db/pgdata/
 
-# Node.js files (scoped to infra/broker_mqtt/)
-infra/broker_mqtt/node_modules/
+# ignore all node_modules
+**/node_modules/
 
 # VS Code C++ configurations
 .vscode/c_cpp_properties.json
