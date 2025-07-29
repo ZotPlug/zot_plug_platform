@@ -80,7 +80,7 @@ broker.on('client', (client: Client) => {
 })
 
 broker.on('publish', (packet: PublishPacket, client: Client | null) => {
-	console.log(client ? `Recieved Packet from: ${client.id} ${packet.payload.toString()}` : "")
+	if (client) console.log(`Recieved Packet from: ${client.id} ${packet.payload.toString()}`)
 	publish_to_topic(test_topic, test_payload, client)
 })
 /* END: General Purpose MQTT functions */
