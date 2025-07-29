@@ -2,23 +2,8 @@
 
 Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. 
 
-## Dependencies
 
-- Arduino CLI for building and flashing
-- ESP32 Board Package via Arduino CLI
-- PubSubClient and EmonLib Arduino libraries
-- MQTT broker (e.g., Aedes) running on your local network
-- Serial monitor tool (arduino-cli monitor, minicom, etc.)
-- mqtt-pattern node.js package
-
-## Flashing & Monitoring
-
-```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 .
-arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 .
-arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
-```
-## 💻⚙️ Software Development Workflow
+## 💻⚙️Software Development Workflow
 
 ### **Pre-requisites**  
 1. Install **Docker**
@@ -38,7 +23,12 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    ```
    > This will start services like `api-dev`, `postgres`, and any other containers tagged with `profiles: ["dev"]`.
 
-## 🛠️ Hardware Development Workflow
+## 🛠️Hardware Development Workflow
+
+### Dependencies
+
+- Arduino CLI for building and flashing
+- Serial monitor tool (arduino-cli monitor, minicom, etc.)
 
 ### **Pre-requisites**  
 1. Install **Node.js** and **npm**  
@@ -54,6 +44,7 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    npm install
    ```
 ### **Dev-Steps**  
+
 1. **Update Network Config**  
    Open `./esp_client/src/main.cpp` and update your network credentials.
 
@@ -70,6 +61,14 @@ arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
    ```
 4. **Flash & Test**  
    Reflash the ESP32 and test against your local broker.
+
+### Flashing & Monitoring
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32 .
+arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 .
+arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
+```
 
 ## 📡 Network Notes
 
