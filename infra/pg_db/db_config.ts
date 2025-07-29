@@ -10,8 +10,8 @@ const pool = new Pool({
 	user: process.env.PG_USER,
 	password: process.env.PG_PASSWORD,
 	database: process.env.PG_DATABASE,
-	max: 10,                    // Optional: max connections
-	idleTimeoutMillis: 30000,  // Optional: timeout for idle clients
+	max: 10,                    		// Optional: max connections
+	idleTimeoutMillis: 30000,  			// Optional: timeout for idle clients
 });
 
 export default pool;
