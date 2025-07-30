@@ -5,9 +5,9 @@
 #include <PubSubClient.h>
 
 /* Network Config */
-const char* ssid = "YOUR_WIFI_USER";
-const char* password = "YOUR_WIFI_PASS";
-const char* mqtt_server = "YOUR_LOCAL/PUB_IP";
+const char* ssid = "Velocity Wi-Fi";
+const char* password = "hdoufroy";
+const char* mqtt_server = "10.10.243.7";
 
 /* Client Config */
 const char* client_id = "zot_plug_000001";

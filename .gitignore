@@ -9,3 +9,6 @@ infra/pg_db/pgdata/
 
 # VS Code C++ configurations
 .vscode/c_cpp_properties.json
+
+# .env file
+.env
