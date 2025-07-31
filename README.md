@@ -14,8 +14,15 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    ```bash
    cd ./zot_plug/infra
    ```
-
-2. **Start the development stack**
+2. **Create a .env file, with the following:**
+   ```bash
+   PG_HOST=postgres
+   PG_PORT=5432
+   PG_USER=myuser
+   PG_PASSWORD=mypassword
+   PG_DATABASE=mydb
+   ```
+3. **Start the development stack**
    Run with the `dev` profile to launch only development-specific containers:
 
    ```bash

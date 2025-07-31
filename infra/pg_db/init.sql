@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS user_device_map (
   PRIMARY KEY (user_id, device_id)
 );
 
+/*
 -- More fine-grained MQTT topic control (WIP)
 CREATE TABLE IF NOT EXISTS device_topics (
   device_id INTEGER 
@@ -54,3 +55,4 @@ CREATE TABLE IF NOT EXISTS device_topics (
     access_types <@ ARRAY['publish', 'subscribe']
   )           
 );
+*/

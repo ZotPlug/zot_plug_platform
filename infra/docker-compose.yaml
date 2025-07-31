@@ -44,6 +44,7 @@ services:
     build:
       context: .
       dockerfile: rest_api/Dockerfile
+    env_file: ./.env
     container_name: rest_api
     profiles: ["prod"]
     expose:
@@ -57,6 +58,7 @@ services:
     build:
       context: .
       dockerfile: rest_api/Dockerfile
+    env_file: ./.env
     container_name: rest_api_dev
     profiles: ["dev"]
     ports:
