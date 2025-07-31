@@ -45,13 +45,29 @@ CREATE TABLE device_topics (
 
 -- Classifies a M:N relationship between users and devices
 CREATE TABLE IF NOT EXISTS user_device_map (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,           -- User ID (foreign key)
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,       -- Device ID (foreign key)
-  role VARCHAR(16) DEFAULT 'viewer'                                 -- Role this user has for this device
-    CHECK (role IN ('owner', 'viewer', 'editor')),                  -- Limits to specific role values
-  status VARCHAR(16) DEFAULT 'active'                               -- Invitation/permission status
-    CHECK (status IN ('active', 'pending', 'revoked')),             -- Valid statuses only
-  invited_at TIMESTAMP,                                             -- When the user was invited to this device
-  accepted_at TIMESTAMP,                                            -- When the user accepted the invite                            
-  PRIMARY KEY (user_id, device_id)                                  -- Prevents duplicate links between same user/device
+  user_id INTEGER 
+    REFERENCES users(id) ON DELETE CASCADE,                         -- Foreign key to users
+  device_id INTEGER 
+    REFERENCES devices(id) ON DELETE CASCADE,                       -- Foreign key to devices
+  role VARCHAR(16) DEFAULT 'viewer'                                 -- Device-level role
+    CHECK (role IN ('owner', 'viewer', 'editor')),                  -- Limits role types per device
+  status VARCHAR(16) DEFAULT 'active' 
+    CHECK (status IN ('active', 'pending', 'revoked')),             -- Tracks invite status or permission revocation
+  invited_at TIMESTAMP,                                             -- When the user was invited to share this device
+  accepted_at TIMESTAMP,                                            -- When the user accepted the invite                                  
+  PRIMARY KEY (user_id, device_id)
 );
+
+-- More fine-grained MQTT topic control (WIP)
+CREATE TABLE IF NOT EXISTS device_topics (
+  device_id INTEGER 
+    REFERENCES devices(id) ON DELETE CASCADE,                       -- Tied to specific device
+  topic TEXT NOT NULL,                                              -- MQTT topic (e.g., plug, plug_000003/data)
+  access_types VARCHAR(16) [] NOT NULL,                             -- Declares type of access
+  PRIMARY KEY (device_id, topic),
+  CHECK (
+    ARRAY_LENGTH (access_types, 1) > 0 AND
+    access_types <@ ARRAY['publish', 'subscribe']
+  )           
+);
+*/
