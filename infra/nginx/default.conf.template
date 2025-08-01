@@ -1,6 +1,7 @@
 # Web-Frontend on port 80
 server {
 	listen 80;
+	server_name zotplug.com www.zotplug.com;
 
 	location / {
 		proxy_pass http://$FRONTEND_HOST:3000;
