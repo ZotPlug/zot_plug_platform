@@ -11,10 +11,27 @@ services:
       - FRONTEND_HOST=frontend
       - BROKER_HOST=broker 
       - API_HOST=api
+    volumes:
+      - /home/certs:/etc/letsencrypt
+      - /home/certs:/data/letsencrypt
     networks:
       - zotplug_net
     depends_on:
       - frontend
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    profiles: ["prod"]
+    restart: unless-stopped
+    volumes:
+      - /home/certs:/etc/letsencrypt
+      - /home/certs:/data/letsencrypt
+    networks:
+      - zotplug_net
+    depends_on:
+      - nginx
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew --webroot -w /data/letsencrypt --deploy-hook 'nginx -s reload'; done"
 
   frontend:
     image: zotpluguci/zot_plug_frontend:beta
@@ -98,3 +115,4 @@ services:
 networks:
   zotplug_net:
     driver: bridge
+
