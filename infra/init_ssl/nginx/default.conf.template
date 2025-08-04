@@ -1,0 +1,18 @@
+# HTTP - only used for ACME challenge
+server {
+    listen 80;
+    server_name zotplug.com www.zotplug.com;
+
+    # For Certbot's webroot challenge
+    location /.well-known/acme-challenge/ {
+        root /data/letsencrypt;
+        try_files $uri =404;
+    }
+
+    # Optional: handle other requests with a dummy response
+    location / {
+        return 200 'SSL initialization server';
+        add_header Content-Type text/plain;
+    }
+}
+
