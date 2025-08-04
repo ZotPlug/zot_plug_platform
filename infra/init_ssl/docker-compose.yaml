@@ -11,7 +11,7 @@ services:
       - BROKER_HOST=broker 
       - API_HOST=api
     volumes:
-      - /home/certs:/data/letsencrypt
+      - /home/certs:/etc/letsencrypt/
     networks:
       - ssl_net
 
@@ -21,7 +21,7 @@ services:
     depends_on:
       - nginx
     volumes:
-      - /home/certs:/data/letsencrypt
+      - /home/certs:/etc/letsencrypt/
     networks:
       - ssl_net
     command: >
