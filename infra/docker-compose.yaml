@@ -5,6 +5,7 @@ services:
     profiles: ["prod"]
     ports:
       - "80:80"
+      - "443:443"
       - "4000:4000"
     environment:
       - FRONTEND_HOST=frontend
