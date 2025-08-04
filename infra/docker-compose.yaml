@@ -12,7 +12,7 @@ services:
       - BROKER_HOST=broker 
       - API_HOST=api
     volumes:
-      - /home/certs:/etc/letsencrypt
+      - /home/certs/etc:/etc/letsencrypt
       - /home/certs:/data/letsencrypt
     networks:
       - zotplug_net
@@ -25,7 +25,7 @@ services:
     profiles: ["prod"]
     restart: unless-stopped
     volumes:
-      - /home/certs:/etc/letsencrypt
+      - /home/certs/etc:/etc/letsencrypt
       - /home/certs:/data/letsencrypt
     networks:
       - zotplug_net
