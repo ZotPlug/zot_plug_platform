@@ -29,8 +29,6 @@ services:
       - /home/certs:/data/letsencrypt
     networks:
       - zotplug_net
-    depends_on:
-      - nginx
 
   frontend:
     image: zotpluguci/zot_plug_frontend:beta
