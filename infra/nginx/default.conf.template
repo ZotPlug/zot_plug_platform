@@ -38,7 +38,7 @@ server {
     }
 
     # Proxy to API
-    location /api/ {
+    location /mobile_api/ {
         proxy_pass http://$API_HOST:4000/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
