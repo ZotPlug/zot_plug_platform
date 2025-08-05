@@ -18,7 +18,6 @@ services:
       - zotplug_net
     depends_on:
       - frontend
-    command: /bin/sh -c "/watch_renew.sh & exec nginx -g 'daemon off;'"
 
   certbot:
     build: ./certbot
