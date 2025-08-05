@@ -20,7 +20,7 @@ services:
       - frontend
 
   certbot:
-    image: certbot/certbot
+    build: ./certbot
     container_name: certbot
     profiles: ["prod"]
     restart: unless-stopped
@@ -31,7 +31,6 @@ services:
       - zotplug_net
     depends_on:
       - nginx
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew --webroot -w /data/letsencrypt --deploy-hook 'nginx -s reload'; done"
 
   frontend:
     image: zotpluguci/zot_plug_frontend:beta
