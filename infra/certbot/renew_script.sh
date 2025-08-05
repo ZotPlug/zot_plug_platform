@@ -7,7 +7,3 @@ while :; do
 	certbot renew --webroot -w /data/letsencrypt \
 		--deploy-hook 'touch /data/letsencrypt/RELOAD_NGINX'
 done
-
-
-
-
