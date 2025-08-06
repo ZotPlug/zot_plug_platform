@@ -36,6 +36,7 @@ DESIGN PRINCIPLES:
 ============================================================
 */
 
+-- session ids for user sessions
 
 -- =========================================================
 -- USERS (Profile info only - no authentication data here)
@@ -243,7 +244,7 @@ CREATE TABLE IF NOT EXISTS user_device_map (
 
 /*
 
--- 2nd Iteration (Won't work, untested)
+-- 2nd Iteration (Won't work, untested) (for reference)
 DROP TABLE IF EXISTS users;
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,                                            -- Auto-incrementing user ID
