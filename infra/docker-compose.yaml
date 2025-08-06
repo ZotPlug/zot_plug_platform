@@ -5,15 +5,30 @@ services:
     profiles: ["prod"]
     ports:
       - "80:80"
+      - "443:443"
       - "4000:4000"
     environment:
       - FRONTEND_HOST=frontend
       - BROKER_HOST=broker 
       - API_HOST=api
+    volumes:
+      - /home/certs/etc:/etc/letsencrypt
+      - /home/certs:/data/letsencrypt
     networks:
       - zotplug_net
     depends_on:
       - frontend
+
+  certbot:
+    build: ./certbot
+    container_name: certbot
+    profiles: ["prod"]
+    restart: unless-stopped
+    volumes:
+      - /home/certs/etc:/etc/letsencrypt
+      - /home/certs:/data/letsencrypt
+    networks:
+      - zotplug_net
 
   frontend:
     image: zotpluguci/zot_plug_frontend:beta
@@ -97,3 +112,4 @@ services:
 networks:
   zotplug_net:
     driver: bridge
+

@@ -1,29 +1,51 @@
-# Web-Frontend on port 80
+# HTTP - only used for ACME challenge and redirect
 server {
-	listen 80;
-	server_name zotplug.com www.zotplug.com;
+    listen 80;
+    server_name zotplug.com www.zotplug.com;
 
-	location / {
-		proxy_pass http://$FRONTEND_HOST:3000;
-		proxy_http_version 1.1;
-		proxy_set_header Host $host;
-		proxy_set_header Upgrade $http_upgrade;
-		proxy_set_header Connection 'upgrade';
-		proxy_cache_bypass $http_upgrade;
-	}
+    # Let’s Encrypt Webroot Challenge
+    location /.well-known/acme-challenge/ {
+        root /data/letsencrypt;
+        try_files $uri =404;
+    }
+
+    # Redirect all other HTTP to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
-# API on port 4000
+# HTTPS - Secure traffic
 server {
-	listen 4000;
+    listen 443 ssl;
+    server_name zotplug.com www.zotplug.com;
 
-	location / {
-		proxy_pass http://$API_HOST:4000;
-		proxy_http_version 1.1;
-		proxy_set_header Host $host;
-		proxy_set_header Upgrade $http_upgrade;
-		proxy_set_header Connection 'upgrade';
-		proxy_cache_bypass $http_upgrade;
-	}
+    ssl_certificate /etc/letsencrypt/live/zotplug.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/zotplug.com/privkey.pem;
+
+    # Recommended SSL settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Proxy to Frontend
+    location / {
+        proxy_pass http://$FRONTEND_HOST:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Proxy to API
+    location /mobile_api/ {
+        proxy_pass http://$API_HOST:4000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+    }
 }
 

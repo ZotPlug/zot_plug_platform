@@ -1,0 +1,41 @@
+services:
+  nginx:
+    build: ./nginx
+    container_name: ssl_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+      - "4000:4000"
+    environment:
+      - FRONTEND_HOST=frontend
+      - BROKER_HOST=broker 
+      - API_HOST=api
+    volumes:
+      - /home/certs/etc:/etc/letsencrypt
+      - /home/certs/lib:/var/lib/letsencrypt
+      - /home/certs/webroot:/data/letsencrypt
+    networks:
+      - ssl_net
+
+  certbot-init:
+    image: certbot/certbot
+    container_name: certbot_init
+    depends_on:
+      - nginx
+    volumes:
+      - /home/certs/etc:/etc/letsencrypt
+      - /home/certs/lib:/var/lib/letsencrypt
+      - /home/certs/webroot:/data/letsencrypt
+    networks:
+      - ssl_net
+    command: >
+      certonly --webroot -w /data/letsencrypt
+      -d zotplug.com -d www.zotplug.com
+      --email zot.plug.service.acc@gmail.com
+      --agree-tos
+      --no-eff-email
+
+networks:
+  ssl_net:
+    driver: bridge
+
