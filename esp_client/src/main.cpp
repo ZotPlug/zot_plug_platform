@@ -6,8 +6,7 @@
 #include <EmonLib.h>   // Current sensor
 #include <Wire.h>
 
-// test
-// test 2
+// te
 
 // ===== Network Config =====
 const char* ssid = "2.4_Wifi";
