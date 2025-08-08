@@ -1,31 +1,123 @@
 #include "env_config.h"
+#include <Preferences.h>
 #include <FS.h>
-#include <Arduino.h>
 
-std::map<std::string, std::string> envVars;
+/* Const vars to avoid typos */
+const char* const K_SSID        = "WIFI_SSID";
+const char* const K_PASS        = "WIFI_PASSWORD";
+const char* const K_MQTT_SERVER = "MQTT_SERVER";
+const char* const K_CLIENT_ID   = "CLIENT_ID";
+const char* const K_CLIENT_USER = "CLIENT_USER";
+const char* const K_CLIENT_PASS = "CLIENT_PASS";
+const char* const NVS_NAMESPACE = "env";
 
-static inline std::string to_std(const String& s) { return std::string(s.c_str()); }
+Preferences prefs;
 
-void loadEnv(const char* path) {
-  File file = SPIFFS.open(path, FILE_READ);
-  if (!file) { Serial.println("Failed to open .env file"); return; }
+void saveCredsToNVS(const String& ssid, const String& pass, const String& mqtt, const String& cid, const String& cuser, const String& cpass) {
+  prefs.begin(NVS_NAMESPACE, false); // namespace NVS_NAMESPACE, read-write
+  prefs.putString(K_SSID, ssid);
+  prefs.putString(K_PASS, pass);
+  prefs.putString(K_MQTT_SERVER, mqtt);
+  prefs.putString(K_CLIENT_ID, cid);
+  prefs.putString(K_CLIENT_USER, cuser);
+  prefs.putString(K_CLIENT_PASS, cpass);
+  prefs.end(); // important: close handle
+}
 
-  while (file.available()) {
-    String line = file.readStringUntil('\n');
-    line.trim();
-    if (line.length() == 0 || line.startsWith("#")) continue;
+Env loadCredsFromNVS() {
+  Env e;
+  prefs.begin(NVS_NAMESPACE, true); // read-only
+  // You can check presence first
+  bool hasAll =
+    prefs.isKey(K_SSID) &&
+    prefs.isKey(K_PASS) &&
+    prefs.isKey(K_MQTT_SERVER) &&
+    prefs.isKey(K_CLIENT_ID) &&
+    prefs.isKey(K_CLIENT_USER) &&
+    prefs.isKey(K_CLIENT_PASS);
 
-    int separatorIndex = line.indexOf('=');
-    if (separatorIndex == -1) continue;
-
-    String key = line.substring(0, separatorIndex);
-    String value = line.substring(separatorIndex + 1);
-    key.trim(); value.trim();
-
-    envVars[to_std(key)] = to_std(value);
+  if (hasAll) {
+    e.ssid  = prefs.getString(K_SSID, "");
+    e.pass  = prefs.getString(K_PASS, "");
+    e.mqtt  = prefs.getString(K_MQTT_SERVER, "");
+    e.cid   = prefs.getString(K_CLIENT_ID, "");
+    e.cuser = prefs.getString(K_CLIENT_USER, "");
+    e.cpass = prefs.getString(K_CLIENT_PASS, "");
+    e.ok = true;
   }
+  prefs.end();
+  return e;
+}
 
-  file.close();
+// If you need to delete one key
+void eraseClientPass() {
+  prefs.begin(NVS_NAMESPACE, false);
+  prefs.remove(K_CLIENT_PASS);
+  prefs.end();
+}
+
+// If you need to wipe the whole namespace
+void wipeEnvNamespace() {
+  prefs.begin(NVS_NAMESPACE, false);
+  prefs.clear();
+  prefs.end();
+}
+
+void printEnv(const Env& e) {
+    Serial.println(F("---- ENV DEBUG ----"));
+    Serial.print(F("SSID: "));        Serial.println(e.ssid);
+    Serial.print(F("PASS: "));        Serial.println(e.pass);
+    Serial.print(F("MQTT: "));        Serial.println(e.mqtt);
+    Serial.print(F("CLIENT_ID: "));   Serial.println(e.cid);
+    Serial.print(F("CLIENT_USER: ")); Serial.println(e.cuser);
+    Serial.print(F("CLIENT_PASS: ")); Serial.println(e.cpass);
+    Serial.println(F("-------------------"));
+}
+
+Env loadFromSPIFFS(const char* path) {
+  Env e;
+  File f = SPIFFS.open(path, FILE_READ);
+  if (!f) return e;
+
+  Serial.println("File was found and opened");
+
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (line.isEmpty() || line.startsWith("#")) continue;
+    int eq = line.indexOf('=');
+    if (eq < 0) continue;
+    String k = line.substring(0, eq); k.trim();
+    String v = line.substring(eq + 1); v.trim();
+
+    if (k == K_SSID)        e.ssid  = v;
+    else if (k == K_PASS) e.pass  = v;
+    else if (k == K_MQTT_SERVER)   e.mqtt  = v;
+    else if (k == K_CLIENT_ID)     e.cid   = v;
+    else if (k == K_CLIENT_USER)   e.cuser = v;
+    else if (k == K_CLIENT_PASS)   e.cpass = v;
+  }
+  f.close();
+  printEnv(e);  // Debug print before final check
+
+  e.ok = !(e.ssid.isEmpty() || e.pass.isEmpty() || e.mqtt.isEmpty()
+           || e.cid.isEmpty() || e.cuser.isEmpty() || e.cpass.isEmpty());
+  return e;
+}
+
+Env ensureEnvInNVS() {
+  Env e = loadCredsFromNVS();
+  printEnv(e);  // Debug print before final check
+  if (e.ok) return e;
+
+  // NVS missing. Try SPIFFS and migrate.
+  Env f;
+  f = loadFromSPIFFS("/config.env");
+  if (f.ok) {
+    saveCredsToNVS(f.ssid, f.pass, f.mqtt, f.cid, f.cuser, f.cpass);
+    return f;
+  }
+  return Env{}; // still not ok
 }
 
 

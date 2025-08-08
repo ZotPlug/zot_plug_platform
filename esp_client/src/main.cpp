@@ -1,18 +1,10 @@
 #include "../main.h"
 #include "./mqtt_config/mqtt_config.h"
+#include "env_config/env_config.h"
 #include <WiFi.h>
-#include <Arduino.h>
 #include <PubSubClient.h>
 
-/* Network Config */
-const char* ssid = "YOUR_WIFI_USER";
-const char* password = "YOUR_WIFI_PASS";
-const char* mqtt_server = "YOUR_LOCAL/PUBLIC_IP";
-
 /* Client Config */
-const char* client_id = "zot_plug_000001";
-const char* client_user = "zot_plug_000001";
-const char* client_pass =  "secret01";
 const char* client_subscribe_topic = "plug/plug_000001/control/#";
 const char* client_publish_topic = "plug/plug_000001/data";
 
@@ -40,9 +32,10 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
 // MQTT Task: Assigned to core 0, used to handle network logic, and maintain connection to server/mqtt Broker. 
 // ( Most likly don't have to touch, unless adding bluetooth )
 void mqttTask(void * parameter){
-	connect_setup_mqtt(ssid, password, mqtt_server, 1883, fn_on_message_received);
+	Env env = loadCredsFromNVS();
+	connect_setup_mqtt(env.ssid.c_str(), env.pass.c_str(), env.mqtt.c_str(), 1883, fn_on_message_received);
 	for(;;){
-		check_maintain_mqtt_connection(client_id, client_user, client_pass, client_subscribe_topic); 
+		check_maintain_mqtt_connection(env.cid.c_str(), env.cuser.c_str(), env.cpass.c_str(), client_subscribe_topic); 
 		vTaskDelay(500 / portTICK_PERIOD_MS);
 	}
 }

@@ -1,7 +1,20 @@
 #pragma once
 #include <SPIFFS.h>
-#include <map>
-#include <string>
+#include <Arduino.h> // For String
 
-extern std::map<std::string, std::string> envVars;
-void loadEnv(const char* path);
+struct Env {
+    String ssid, pass, mqtt, cid, cuser, cpass;
+    bool ok = false;
+};
+
+/* Const keys to prevent typos */
+extern const char* const K_SSID;
+extern const char* const K_PASS;
+extern const char* const K_MQTT_SERVER;
+extern const char* const K_CLIENT_ID;
+extern const char* const K_CLIENT_USER;
+extern const char* const K_CLIENT_PASS;
+
+Env ensureEnvInNVS();
+Env loadCredsFromNVS();
+
