@@ -45,12 +45,11 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    ```bash
    cd ./infra/broker_mqtt
    ```
-
 3. Install project dependencies  
    ```bash
    npm install
    ```
-4. Install **PlatformIO Core (CLI)** 
+4. Install **PlatformIO Core (CLI)**:  
    **MacOS**:
    ```bash
    brew install platformio
@@ -59,9 +58,7 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)
    -or-
    [Python Package Manage](https://docs.platformio.org/en/latest/core/installation/methods/pypi.html)
-   
-### **Dev-Steps**  
-
+  
 ### **Dev-Steps**  
 
 1. **Update Network Config**  
