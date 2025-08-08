@@ -36,6 +36,7 @@ DESIGN PRINCIPLES:
 ============================================================
 */
 
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =========================================================
@@ -208,6 +209,8 @@ CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);
 
+
+
 /*
 --First working version
 
@@ -251,98 +254,5 @@ CREATE TABLE IF NOT EXISTS user_device_map (
   accepted_at TIMESTAMP,                                            -- When the user accepted the invite                                  
   PRIMARY KEY (user_id, device_id)
 );
-
-*/
-
-/*
-
--- 2nd Iteration (Won't work, untested) (for reference)
-DROP TABLE IF EXISTS users;
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,                                            -- Auto-incrementing user ID
-  firstname VARCHAR(64) NOT NULL,                                   -- User's firstname (required)
-  lastname VARCHAR(64) NOT NULL,                                    -- User's last name (required)
-  username VARCHAR(64) NOT NULL UNIQUE,                             -- Unique username (used for login/auth)
-  email VARCHAR(64) NOT NULL UNIQUE,                                -- Unique email (used for login/auth or alerts)
-  email_verified BOOLEAN DEFAULT FALSE,                             -- Email verification (auth security)
-  phone VARCHAR(15),                                                -- Optional phone number (may be used for MFA/alerts)               
-  password_hash TEXT NOT NULL,                                      -- Hashed password (never store plaintext)
-  role_id INTEGER REFERENCES roles(id)
-);
-
-DROP TABLE IF EXISTS devices;
-CREATE TABLE IF NOT EXISTS devices (
-  id SERIAL PRIMARY KEY,                                            -- Auto-incrementing device ID
-  name VARCHAR(128) NOT NULL UNIQUE,                                -- Human-readable device name (user-defined)
-  mqtt_username TEXT NOT NULL UNIQUE,                               -- Unique MQTT client username used by device for broker auth (e.g., "zot_plug_000001")
-  password_hash TEXT NOT NULL,                                      -- Hashed MQTT password for secure broker login 
-  status VARCHAR(32) DEFAULT 'offline'                              -- Device's online state; default = offline
-    CHECK (status IN ('online', 'offline', 'error')),               -- Valid status values only           
-  last_seen TIMESTAMP                                               -- Timestamp of last communication with the broker
-);
-
-DROP TABLE IF EXISTS device_allowed_publish;
-CREATE TABLE IF NOT EXISTS device_allowed_publish (
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,       -- Device ID (foreign key)
-  topic TEXT NOT NULL,                                              -- MQTT topic the device can publish to
-  PRIMARY KEY (device_id, topic)                                    -- Ensures no duplicates for (device, topic)
-);
-
-DROP TABLE IF EXISTS device_allowed_subscribe;
-CREATE TABLE IF NOT EXISTS device_allowed_subscribe (
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,       -- Device ID (foreign key)
-  topic TEXT NOT NULL,                                              -- MQTT topic the device can subscribe to 
-  PRIMARY KEY (device_id, topic)                                    -- Ensures uniqueness
-);
-
-DROP TABLE IF EXISTS device_topics;
-CREATE TABLE IF NOT EXISTS device_topics (
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,       -- Device ID (foreign key)
-  topic TEXT NOT NULL,                                              -- Topic the device can access
-  can_publish BOOLEAN DEFAULT FALSE,                                -- Whether device can publish to this topic
-  can_subscribe BOOLEAN DEFAULT FALSE,                              -- Whether device can subscribe to this topic
-  PRIMARY KEY (device_id, topic)                                    -- Enforces unique topic per device
-);
-
-DROP TABLE IF EXISTS roles;
-CREATE TABLE IF NOT EXISTS roles (
-  id SERIAL PRIMARY KEY,                                            -- Unique role ID
-  name VARCHAR(32) NOT NULL UNIQUE,                                 -- Role name like 'admin', 'viewer', etc.
-  scope VARCHAR(16) NOT NULL                                        -- Role type: 'global' or 'device'
-    CHECK (scope IN ('global', 'device')),
-  description TEXT                                                  -- Optional description of what the role does
-);
-
--- Classifies a M:N relationship between users and devices
-DROP TABLE IF EXISTS user_device_map;
-CREATE TABLE IF NOT EXISTS user_device_map (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,           -- User ID (foreign key)
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,       -- Device ID (foreign key)
-  role_id INTEGER REFERENCES roles(id),
-  status VARCHAR(16) DEFAULT 'active'                               -- Invitation/permission status
-    CHECK (status IN ('active', 'pending', 'revoked')),             -- Valid statuses only
-  invited_at TIMESTAMP,                                             -- When the user was invited to this device
-  accepted_at TIMESTAMP,                                            -- When the user accepted the invite                            
-  PRIMARY KEY (user_id, device_id)                                  -- Prevents duplicate links between same user/device
-);
-
-DROP TABLE IF NOT EXISTS user_creation_info;
-CREATE TABLE IF NOT EXISTS user_creation_info (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  created_by INTEGER REFERENCES users(id),              -- optional: who created the user
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  creation_ip INET,                                     -- optional
-  method VARCHAR(32)                                    -- e.g., 'web', 'cli', 'api'
-);
-
-DROP TABLE IF EXISTS device_registration_info;
-CREATE TABLE IF NOT EXISTS device_registration_info (
-  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-  registered_by INTEGER REFERENCES users(id),           -- who registered this device
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  registration_ip INET,
-  tool_used TEXT
-);
-
 
 */
