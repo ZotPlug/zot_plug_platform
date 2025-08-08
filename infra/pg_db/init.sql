@@ -31,12 +31,12 @@ DESIGN PRINCIPLES:
 
 - Maintainability:
   * Consistent table naming conventions and logical grouping of concerns.
-  * Use of `ON DELETE CASCADE` for clean removal of dependent records.
+  * Use of ON DELETE CASCADE for clean removal of dependent records.
   * CHECK constraints to enforce domain validity.
 ============================================================
 */
 
--- session ids for user sessions
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =========================================================
 -- USERS (Profile info only - no authentication data here)
@@ -52,6 +52,18 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(15),
   is_deleted BOOLEAN DEFAULT FALSE,
   deleted_at TIMESTAMP
+);
+
+DROP TABLE IF EXISTS user_sessions;
+CREATE TABLE IF NOT EXISTS user_sessions (
+  session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Requires pgcrypto extension
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  ip_address INET,
+  user_agent TEXT,
+  is_active BOOLEAN DEFAULT TRUE,        -- For forced logout
+  revoked_at TIMESTAMP
 );
 
 -- =========================================================
@@ -193,8 +205,8 @@ CREATE INDEX idx_device_credentials_mqtt_username ON device_credentials(mqtt_use
 CREATE INDEX idx_user_device_map_user_id ON user_device_map(user_id);
 CREATE INDEX idx_user_device_map_device_id ON user_device_map(device_id);
 CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);
-
-
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);
 
 /*
 --First working version
