@@ -12,3 +12,6 @@ infra/pg_db/pgdata/
 
 # .env file
 .env
+
+# .env file for esp32
+./esp_client/data/config.env
