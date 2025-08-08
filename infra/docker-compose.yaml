@@ -87,7 +87,7 @@ services:
     build: ./cron
     container_name: cron
     volumes:
-      - ~/pg_db/backups:/backups
+      - /home/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - zotplug_net
