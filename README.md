@@ -54,9 +54,9 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    ```bash
    brew install platformio
    ```
-   **Windows & Linux**:
-   [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)
-   -or-
+   **Windows & Linux**:  
+   [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)  
+   -or-  
    [Python Package Manage](https://docs.platformio.org/en/latest/core/installation/methods/pypi.html)
   
 ### **Dev-Steps**  
