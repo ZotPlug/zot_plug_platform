@@ -23,9 +23,4 @@ void setup(){
 }
 
 void loop(){
-  Env env = ensureEnvInNVS();
-  if (!env.ok) {
-    Serial.println("ENV not found in NVS and SPIFFS. Check config.env.");
-    return;
-  }
 }

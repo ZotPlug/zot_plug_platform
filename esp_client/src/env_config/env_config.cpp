@@ -63,7 +63,7 @@ void wipeEnvNamespace() {
   prefs.end();
 }
 
-void printEnv(const Env& e) {
+void debug_printEnv(const Env& e) {
     Serial.println(F("---- ENV DEBUG ----"));
     Serial.print(F("SSID: "));        Serial.println(e.ssid);
     Serial.print(F("PASS: "));        Serial.println(e.pass);
@@ -98,7 +98,6 @@ Env loadFromSPIFFS(const char* path) {
     else if (k == K_CLIENT_PASS)   e.cpass = v;
   }
   f.close();
-  printEnv(e);  // Debug print before final check
 
   e.ok = !(e.ssid.isEmpty() || e.pass.isEmpty() || e.mqtt.isEmpty()
            || e.cid.isEmpty() || e.cuser.isEmpty() || e.cpass.isEmpty());
@@ -107,7 +106,6 @@ Env loadFromSPIFFS(const char* path) {
 
 Env ensureEnvInNVS() {
   Env e = loadCredsFromNVS();
-  printEnv(e);  // Debug print before final check
   if (e.ok) return e;
 
   // NVS missing. Try SPIFFS and migrate.
