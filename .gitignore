@@ -15,3 +15,6 @@ infra/pg_db/pgdata/
 
 # .env file for esp32
 ./esp_client/data/config.env
+
+# platformio build cache
+./esp_client/.pio/
