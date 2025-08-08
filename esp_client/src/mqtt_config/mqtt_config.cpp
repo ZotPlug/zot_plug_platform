@@ -1,5 +1,6 @@
-#include "config.h"
-#include "Arduino.h"
+#include "mqtt_config.h"
+#include <Arduino.h>
+#include <WiFi.h>
 
 WiFiClient espClient;
 void setup_wifi(const char *ssid, const char *password){
@@ -55,14 +56,5 @@ void check_maintain_mqtt_connection(const char* client_id, const char* client_us
 //-1 to account for the wildcard "#" char
 boolean val_incoming_topic(const char *topic, const char *client_subscribe_topic){
   return strncmp(topic, client_subscribe_topic, strlen(client_subscribe_topic) - 1) == 0 ? true : false;
-} 
-
-
-
-
-
-
-
-
-
+}
 
