@@ -50,23 +50,49 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    ```bash
    npm install
    ```
+4. Install **PlatformIO Core (CLI)** 
+   **MacOS**:
+   ```bash
+   brew install platformio
+   ```
+   **Windows & Linux**:
+   [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)
+   -or-
+   [Python Package Manage](https://docs.platformio.org/en/latest/core/installation/methods/pypi.html)
+   
+### **Dev-Steps**  
+
 ### **Dev-Steps**  
 
 1. **Update Network Config**  
-   Open `./esp_client/src/main.cpp` and update your network credentials.
+   - Open `./esp_client/data`
+   - Copy `config.env.example` to `config.env`
+   - Update your network and device credentials in `config.env`
 
-2. **Run the MQTT Broker**  
+2. **Upload `config.env` into ESP32**  
+   - Navigate to `./esp_client/`
+   - Plug in your ESP32
+   - Run:
+     ```bash
+     pio run --target uploadfs
+     ```
+   > **Note:** To remove `config.env`:
+   > ```bash
+   > pio run -t erase
+   > # You will need to re-upload your code as well (this wipes the entire flash)
+   > ```
+
+3. **Run the MQTT Broker**  
    From the project root, run:
-
    ```bash
    npx tsx ./infra/broker_mqtt/server.ts
    ```
-3. **Develop Firmware**
+4. **Develop Firmware**
    Navigate to:
    ```bash
    ./esp_client/src
    ```
-4. **Flash & Test**  
+5. **Flash & Test**  
    Reflash the ESP32 and test against your local broker.
 
 ### Flashing & Monitoring
