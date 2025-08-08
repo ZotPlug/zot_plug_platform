@@ -26,7 +26,9 @@ export const test = async (): Promise<object | null> => {
 	}
 }
 
+/*
 (async function main() {
 	await run()
 })()
+*/
 
