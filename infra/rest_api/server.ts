@@ -7,7 +7,7 @@ const PORT = 4000;
 app.use(express.json())
 
 app.get('/', (req: Request, res: Response) => {
-	res.send('Ello from node.js rest server!')
+	res.json({ message: 'Ello from node.js rest server!' })
 })
 
 app.post('/api/data', (req: Request, res: Response) => {
