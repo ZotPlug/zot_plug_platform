@@ -1,258 +1,247 @@
 /*
-============================================================
+===========================================================================
 ZotPlug Platform – PostgreSQL Database Schema
-============================================================
+===========================================================================
 
 OVERVIEW:
-This schema defines the relational data model for the ZotPlug IoT
-platform, designed for secure, scalable, and maintainable operation
-with potentially thousands of users and devices.
+This schema defines the relational data model for the ZotPlug IoT 
+platform — a secure, scalable, and maintainable backend that supports
+real-time monitoring and management of potentially thousands of 
+smart plug devices and users. 
 
 DESIGN PRINCIPLES:
 - Separation of Concerns:
-  * User profile data is stored separately from authentication credentials.
-  * Device metadata is separated from device authentication credentials.
-  * Global roles (system-wide) are distinct from device roles (per-device).
+  * User profile data is isolated from authentication credentials.
+  * Device metadata is separated from authentication keys.
+  * Global roles users (system-wide) are distinct per-device role.
 
 - Normalization (up to BCNF):
   * Eliminates redundancy and update anomalies by ensuring each fact
-    is stored in exactly one place.
+    is stored in exactly one place (table).
   * Many-to-many relationships are resolved via junction tables.
   
 - Security:
-  * Credentials are stored in dedicated tables to limit access and exposure.
+  * Authentication credentials are stored in dedicated tables with 
+    restricted access. 
+  * Role-based access control (RBAC) models both global and device
+    -specific permissions. 
   * Access control is modeled through explicit role and permission tables.
-  * Audit logging for traceability of important actions.
+  * Audit logs ensure traceability of key platform actions. 
 
 - Scalability:
-  * Indexed high-cardinality and frequently filtered columns for fast lookups.
-  * Flexible JSONB columns for extensible metadata without schema rewrites.
-  * Soft-delete fields allow archival without physically removing records.
+  * Indexed high-cardinality and frequently filtered columns for efficient 
+    querying.
+  * JSONB columns support flexible, schema-less metadata without rewrites.
+  * Soft-delete flags allow archival without physically removing records.
 
 - Maintainability:
   * Consistent table naming conventions and logical grouping of concerns.
   * Use of ON DELETE CASCADE for clean removal of dependent records.
-  * CHECK constraints to enforce domain validity.
-============================================================
+  * CHECK constraints ensure domain-specific data validity. 
+===========================================================================
 */
 
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;                                      -- Enables pgcrypto functions (e.g., gen_random_uuid) for UUIDs & crypto ops
 
 -- =========================================================
--- USERS (Profile info only - no authentication data here)
+-- USERS 
+-- Stores user profile info only - authentication data is kept 
+-- in a separate table for better separation of concerns. 
 -- =========================================================
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  firstname VARCHAR(64) NOT NULL,
-  lastname VARCHAR(64) NOT NULL,
-  username VARCHAR(64) NOT NULL UNIQUE,
-  email VARCHAR(64) NOT NULL UNIQUE,
-  email_verified BOOLEAN DEFAULT FALSE,
-  phone VARCHAR(15),
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMP
+  id SERIAL PRIMARY KEY,                                                      -- Auto-incrementing user ID
+  firstname VARCHAR(64) NOT NULL,                                             -- User's firstname (required)
+  lastname VARCHAR(64) NOT NULL,                                              -- User's lastname (required)
+  username VARCHAR(64) NOT NULL UNIQUE,                                       -- Login/display name (unique)
+  email VARCHAR(64) NOT NULL UNIQUE,                                          -- Unique email (for login/auth or notifications)
+  email_verified BOOLEAN DEFAULT FALSE,                                       -- Email verification (auth security)
+  phone VARCHAR(15),                                                          -- Optional phone number
+  is_deleted BOOLEAN DEFAULT FALSE,                                           -- Soft-delete flag (true if account is removed)
+  deleted_at TIMESTAMP                                                        -- Timestamp when user was soft-deleted
 );
 
-DROP TABLE IF EXISTS user_sessions;
+-- =========================================================
+-- USER_SESSIONS
+-- Tracks active user sessions for security and auditing.
+-- =========================================================
+DROP TABLE IF EXISTS user_sessions CASCADE;
 CREATE TABLE IF NOT EXISTS user_sessions (
-  session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Requires pgcrypto extension
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
-  ip_address INET,
-  user_agent TEXT,
-  is_active BOOLEAN DEFAULT TRUE,        -- For forced logout
-  revoked_at TIMESTAMP
+  session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                      -- Unique session ID (UUID from pgcrypto)
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,            -- User owning the session
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                             -- When session was created
+  expires_at TIMESTAMP NOT NULL,                                              -- Session expiry time
+  ip_address INET,                                                            -- IP address of client 
+  user_agent TEXT,                                                            -- Client's user agent string
+  is_active BOOLEAN DEFAULT TRUE,                                             -- Mark inactive to force logout
+  revoked_at TIMESTAMP                                                        -- When session was revoked 
 );
 
 -- =========================================================
--- AUTHENTICATION (separate table for credentials/security)
+-- AUTH_CREDENTIALS
+-- Stores authentication secrets and MFA data, separated
+-- from profile data for security isolation.
 -- =========================================================
-DROP TABLE IF EXISTS auth_credentials;
+DROP TABLE IF EXISTS auth_credentials CASCADE;
 CREATE TABLE IF NOT EXISTS auth_credentials (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  password_hash TEXT NOT NULL,
-  mfa_secret TEXT,            -- optional for multi-factor authentication
-  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user (1:1 mapping)
+  password_hash TEXT NOT NULL,                                                -- Hashed password
+  mfa_secret TEXT,                                                            -- Optional MFA secret (e.g., TOTP key)
+  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Audit of last password change
 );
 
 -- =========================================================
--- GLOBAL ROLES (system-wide permissions)
+-- GLOBAL_ROLES
+-- System-wide role definitions for authorization (RBAC).
 -- =========================================================
-DROP TABLE IF EXISTS global_roles;
+DROP TABLE IF EXISTS global_roles CASCADE;
 CREATE TABLE IF NOT EXISTS global_roles (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(32) NOT NULL UNIQUE,   -- e.g., 'admin', 'support'
-  description TEXT
+  id SERIAL PRIMARY KEY,                                                      -- Role ID
+  name VARCHAR(32) NOT NULL UNIQUE,                                           -- Role name (e.g., 'admin', 'support')
+  description TEXT                                                            -- Optional human-readable description
 );
 
--- M:N mapping of users to global roles
-DROP TABLE IF EXISTS user_global_roles;
+-- =========================================================
+-- USER_GLOBAL_ROLES
+-- M:N mapping of users to global roles. 
+-- =========================================================
+DROP TABLE IF EXISTS user_global_roles CASCADE;
 CREATE TABLE IF NOT EXISTS user_global_roles (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  role_id INTEGER REFERENCES global_roles(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, role_id)
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,                     -- FK to user
+  role_id INTEGER REFERENCES global_roles(id) ON DELETE CASCADE,              -- FK to role
+  PRIMARY KEY (user_id, role_id)                                              -- Composite PK avoids duplicates
 );
 
 -- =========================================================
--- DEVICES (basic device registry)
+-- DEVICES 
+-- Registry of all devices in the system. 
 -- =========================================================
-DROP TABLE IF EXISTS devices;
+DROP TABLE IF EXISTS devices CASCADE;
 CREATE TABLE IF NOT EXISTS devices (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(128) NOT NULL UNIQUE,
-  status VARCHAR(32) DEFAULT 'offline'                              -- Device's online state; default = offline
-    CHECK (status IN ('online', 'offline', 'error')),
-  last_seen TIMESTAMP,
-  is_deleted BOOLEAN DEFAULT FALSE,
-  deleted_at TIMESTAMP
+  id SERIAL PRIMARY KEY,                                                      -- Device ID
+  name VARCHAR(128) NOT NULL UNIQUE,                                          -- Unique device name
+  status VARCHAR(32) DEFAULT 'offline'                                        -- Current device state
+    CHECK (status IN ('online', 'offline', 'error')),                         
+  last_seen TIMESTAMP,                                                        -- Last heartbeat/ping
+  is_deleted BOOLEAN DEFAULT FALSE,                                           -- Soft-delete flag
+  deleted_at TIMESTAMP                                                        -- When device was soft-deleted
 );
 
-DROP TABLE IF EXISTS device_credentials;
+-- =========================================================
+-- DEVICES_CREDENTIALS 
+-- Authentication credentials for MQTT or other protocols. 
+-- =========================================================
+DROP TABLE IF EXISTS device_credentials CASCADE;
 CREATE TABLE IF NOT EXISTS device_credentials (
-  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-  mqtt_username TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device (1:1 mapping)
+  mqtt_username TEXT NOT NULL UNIQUE,                                         -- MQTT username
+  password_hash TEXT NOT NULL,                                                -- Hashed password for MQTT
+  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Last password change timestamp
 );
 
 -- =========================================================
--- DEVICES METADATA (expandable attributes)
+-- DEVICES_METADATA
+-- Optional extended metadata for devices. 
 -- =========================================================
-DROP TABLE IF EXISTS device_metadata;
+DROP TABLE IF EXISTS device_metadata CASCADE;
 CREATE TABLE IF NOT EXISTS device_metadata (
-  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-  firmware_version VARCHAR(64),
-  model VARCHAR(64),
-  software_version VARCHAR(64),
-  hw_capabilities JSONB -- flexible storage for varied device types
+  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device (1:1 mapping)
+  firmware_version VARCHAR(64),                                               -- Firmware version
+  model VARCHAR(64),                                                          -- Model name/number  
+  software_version VARCHAR(64),                                               -- Software version
+  hw_capabilities JSONB                                                       -- JSON of hardware capabilities (for varied device types)
 );
 
 -- =========================================================
--- DEVICES ROLES (per-device permissions)
+-- DEVICES_ROLES
+-- Role definitions for per-device permissions. 
 -- =========================================================
-DROP TABLE IF EXISTS device_roles;
+DROP TABLE IF EXISTS device_roles CASCADE;
 CREATE TABLE IF NOT EXISTS device_roles (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(32) NOT NULL UNIQUE, -- e.g., 'owner', 'viewer', 'maintainer'
-  description TEXT
+  id SERIAL PRIMARY KEY,                                                      -- Device role ID
+  name VARCHAR(32) NOT NULL UNIQUE,                                           -- Role name (e.g., 'owner', 'viewer', 'maintainer')
+  description TEXT                                                            -- Role description
 );
 
--- M:N mapping of users to devices with roles
-DROP TABLE IF EXISTS user_device_map;
+-- =========================================================
+-- USER_DEVICE_MAP
+-- M:N mapping of users to devices with role assignments. 
+-- =========================================================
+DROP TABLE IF EXISTS user_device_map CASCADE;
 CREATE TABLE IF NOT EXISTS user_device_map (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
-  role_id INTEGER REFERENCES device_roles(id) ON DELETE CASCADE,
-  status VARCHAR(16) DEFAULT 'active'
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,                     -- FK to user
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
+  role_id INTEGER REFERENCES device_roles(id) ON DELETE CASCADE,              -- FK to device role
+  status VARCHAR(16) DEFAULT 'active'                                         -- Link status
     CHECK (status IN ('active', 'pending', 'revoked')),
-  invited_at TIMESTAMP,
-  accepted_at TIMESTAMP,
-  PRIMARY KEY (user_id, device_id)
+  invited_at TIMESTAMP,                                                       -- Invitation sent timestamp
+  accepted_at TIMESTAMP,                                                      -- Invitation accepted timestamp
+  PRIMARY KEY (user_id, device_id)                                            -- Composite PK ensures uniqueness
 );
 
 -- =========================================================
--- TOPIC PERMISSIONS (unified publish/subscribe table)
+-- DEVICE_TOPIC_PERMISSIONS
+-- Permissions for publish/subscribe per device topic. 
 -- =========================================================
-DROP TABLE IF EXISTS device_topic_permissions;
+DROP TABLE IF EXISTS device_topic_permissions CASCADE;
 CREATE TABLE IF NOT EXISTS device_topic_permissions (
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
-  topic TEXT NOT NULL,
-  can_publish BOOLEAN DEFAULT FALSE,
-  can_subscribe BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (device_id, topic)
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
+  topic TEXT NOT NULL,                                                        -- MQTT topic
+  can_publish BOOLEAN DEFAULT FALSE,                                          -- Publish permission
+  can_subscribe BOOLEAN DEFAULT FALSE,                                        -- Subscribe permission
+  PRIMARY KEY (device_id, topic)                                              -- Unique topic per device
 );
 
 -- =========================================================
--- AUDIT LOGS (flexible action history)
+-- AUDIT LOGS
+-- Tracks actions performed on entities for audit purposes. 
 -- =========================================================
-DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS audit_logs CASCADE;
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id SERIAL PRIMARY KEY,
-  entity_type VARCHAR(32) NOT NULL, -- 'user', 'device', 'topic', etc.
-  entity_id INTEGER NOT NULL,
-  action VARCHAR(64) NOT NULL,
-  performed_by INTEGER REFERENCES users(id),
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  details JSONB
+  id SERIAL PRIMARY KEY,                                                      -- Log entry ID
+  entity_type VARCHAR(32) NOT NULL,                                           -- Type of entity (e.g., 'user', 'device', 'topic', etc.)
+  entity_id INTEGER NOT NULL,                                                 -- ID of affected entity 
+  action VARCHAR(64) NOT NULL,                                                -- Action performed 
+  performed_by INTEGER REFERENCES users(id),                                  -- FK to user who performed action
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                              -- When the action occurred
+  details JSONB                                                               -- Additional info as JSON
 );
 
 -- =========================================================
--- CREATION/REGISTRATION INFO
+-- USER_CREATION_INFO
+-- Tracks how and when each user was created. 
 -- =========================================================
-DROP TABLE IF EXISTS user_creation_info;
+DROP TABLE IF EXISTS user_creation_info CASCADE;
 CREATE TABLE IF NOT EXISTS user_creation_info (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  creation_ip INET,
-  method VARCHAR(32)
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user
+  created_by INTEGER REFERENCES users(id),                                    -- FK to creator (nullable for self-signup)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                             -- Timestamp of creation
+  creation_ip INET,                                                           -- IP address of creator
+  method VARCHAR(32)                                                          -- Method of creation (e.g., 'manual', 'invite')
 );
 
-DROP TABLE IF EXISTS device_registration_info;
+-- =========================================================
+-- DEVICE_REGISTRATION_INFO
+-- Tracks how and when each device was registered.
+-- =========================================================
+DROP TABLE IF EXISTS device_registration_info CASCADE;
 CREATE TABLE IF NOT EXISTS device_registration_info (
-  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-  registered_by INTEGER REFERENCES users(id),
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  registration_ip INET,
-  tool_used TEXT
+  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device
+  registered_by INTEGER REFERENCES users(id),                                 -- FK to registering user
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Timestamp of registration
+  registration_ip INET,                                                       -- IP address of registration
+  tool_used TEXT                                                              -- Tool used to register (e.g., CLI, web UI)
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_device_credentials_mqtt_username ON device_credentials(mqtt_username);
-CREATE INDEX idx_user_device_map_user_id ON user_device_map(user_id);
-CREATE INDEX idx_user_device_map_device_id ON user_device_map(device_id);
-CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);
-
-
-
-/*
---First working version
-
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,                                            -- Auto-incrementing user ID
-  firstname VARCHAR(64) NOT NULL,                                   -- User's firstname (required)
-  lastname VARCHAR(64) NOT NULL,                                    -- User's last name (required)
-  middlename VARCHAR(64),                                           -- Optional middle name
-  username VARCHAR(64) NOT NULL UNIQUE,                             -- Unique login username per user
-  email VARCHAR(64) NOT NULL UNIQUE,                                -- Unique email (used for login/auth or notifications)
-  email_verified BOOLEAN DEFAULT FALSE,                             -- Email verification (auth security)
-  phone VARCHAR(15),                                                -- Optional phone number                
-  password_hash TEXT NOT NULL,                                      -- Hashed password string
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                   -- Timestamp of account creation
-  role VARCHAR(16) NOT NULL DEFAULT 'guest'                         -- Global role for user
-    CHECK (role IN ('guest', 'admin'))                              -- Limits role values to valid choices
-);
-
-CREATE TABLE IF NOT EXISTS devices (
-  id SERIAL PRIMARY KEY,                                            -- Auto-incrementing device ID
-  name VARCHAR(128) NOT NULL UNIQUE,                                -- Human-readable user-defined device name
-  mqtt_username TEXT NOT NULL UNIQUE,                               -- MQTT client username used for auth (e.g., "zot_plug_000001")
-  password_hash TEXT NOT NULL,                                      -- MQTT password hash (for secure auth to broker)
-  allowed_publish TEXT[],                                           -- Array of MQTT topics this device is allowed to publish to
-  allowed_subscribe TEXT[],                                         -- Array of MQTT topics this device is allowed to subcribe to
-  status VARCHAR(32) DEFAULT 'offline'                  
-    CHECK (status IN ('online', 'offline', 'error')),               -- Track live connectivity status           
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                -- Time the device was registered (could be changed to date)
-  last_seen TIMESTAMP                                               -- When the device last communicated (updated by broker)
-);
-
--- Classifies a M:N relationship between users and devices
-CREATE TABLE IF NOT EXISTS user_device_map (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,                         -- Foreign key to users
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                       -- Foreign key to devices
-  role VARCHAR(16) DEFAULT 'viewer'                                 -- Device-level role
-    CHECK (role IN ('owner', 'viewer', 'editor')),                  -- Limits role types per device
-  status VARCHAR(16) DEFAULT 'active' 
-    CHECK (status IN ('active', 'pending', 'revoked')),             -- Tracks invite status or permission revocation
-  invited_at TIMESTAMP,                                             -- When the user was invited to share this device
-  accepted_at TIMESTAMP,                                            -- When the user accepted the invite                                  
-  PRIMARY KEY (user_id, device_id)
-);
-
-*/
+-- =========================================================
+-- INDEXES (Performance Optimization)
+-- =========================================================
+CREATE INDEX idx_users_email ON users(email);                                                   -- Lookup by email
+CREATE INDEX idx_users_username ON users(username);                                             -- Lookup by username
+CREATE INDEX idx_device_credentials_mqtt_username ON device_credentials(mqtt_username);         -- MQTT auth lookup 
+CREATE INDEX idx_user_device_map_user_id ON user_device_map(user_id);                           -- Device by user
+CREATE INDEX idx_user_device_map_device_id ON user_device_map(device_id);                       -- User by device
+CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);                    -- Topic-based lookup
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);                               -- Sessions by user
+CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);                              -- Active sessions filter
