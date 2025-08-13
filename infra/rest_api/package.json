@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
     "pg": "^8.16.3"
   }
 }
