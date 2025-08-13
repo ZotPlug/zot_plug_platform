@@ -14,19 +14,19 @@ default upgrade;
 
 # HTTP - only used for ACME challenge and redirect
 server {
-listen 80;
-server_name zotplug.com www.zotplug.com;
+    listen 80;
+    server_name zotplug.com www.zotplug.com;
 
-# Let’s Encrypt Webroot Challenge
-location /.well-known/acme-challenge/ {
-    root /data/letsencrypt;
-    try_files $uri =404;
-}
+    # Let’s Encrypt Webroot Challenge
+    location /.well-known/acme-challenge/ {
+        root /data/letsencrypt;
+        try_files $uri =404;
+    }
 
-# Redirect all other HTTP to HTTPS
-location / {
-    return 301 https://$host$request_uri;
-}
+    # Redirect all other HTTP to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 # HTTPS - Secure traffic
