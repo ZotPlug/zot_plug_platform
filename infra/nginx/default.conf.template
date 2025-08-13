@@ -1,23 +1,37 @@
+# Per-IP request rate (simple protection)
+limit_req_zone $binary_remote_addr zone=api_ip:10m rate=10r/s;
+
+# Per-IP concurrent connection cap ( stops slowloris-style abuse )
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+
+# "http_upgrade" var is being first checked, then assigned to "connection_upgrade"
+# If the incoming "http_upgrade" has any value, set connection_upgrade to upgrade
+# Else, no value, then just set to close
+map $http_upgrade $connection_upgrade {
+default upgrade;
+''      close;
+}
+
 # HTTP - only used for ACME challenge and redirect
 server {
-    listen 80;
-    server_name zotplug.com www.zotplug.com;
+listen 80;
+server_name zotplug.com www.zotplug.com;
 
-    # Let’s Encrypt Webroot Challenge
-    location /.well-known/acme-challenge/ {
-        root /data/letsencrypt;
-        try_files $uri =404;
-    }
+# Let’s Encrypt Webroot Challenge
+location /.well-known/acme-challenge/ {
+    root /data/letsencrypt;
+    try_files $uri =404;
+}
 
-    # Redirect all other HTTP to HTTPS
-    location / {
-        return 301 https://$host$request_uri;
-    }
+# Redirect all other HTTP to HTTPS
+location / {
+    return 301 https://$host$request_uri;
+}
 }
 
 # HTTPS - Secure traffic
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name zotplug.com www.zotplug.com;
 
     ssl_certificate /etc/letsencrypt/live/zotplug.com/fullchain.pem;
@@ -27,25 +41,49 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
+    # Timeouts so hung req/ backends don't pin sockets
+    # ---- Upstream timeouts ----
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+    # ---------------------------
+
+    # Return 429 when throttled ( Nginx defaults to 503 on limit hits )
+    error_page 503 = @rate_limited;
+    location @rate_limited {
+        add_header Retry-After 5 always;
+        default_type application/json;
+        return 429 '{"error" : "rate_limited"}';
+    }
+
     # Proxy to Frontend
     location / {
-        proxy_pass http://$FRONTEND_HOST:3000;
+        proxy_pass http://frontend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
     }
 
     # Proxy to API
     location /mobile_api/ {
-        proxy_pass http://$API_HOST:4000/;
+        limit_req zone=api_ip burst=20 nodelay;  # Allow short spikes up to 20
+        limit_conn perip 20;                    # Cap concurrent conns per IP
+
+        proxy_pass http://api_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
     }
 }
 
+# Prep for Load Balancing, round robin style
+upstream frontend_upstream { server frontend:3000; }
+upstream api_upstream      { server api:4000; }
