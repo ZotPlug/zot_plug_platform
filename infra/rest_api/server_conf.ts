@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express'
 import rateLimit from 'express-rate-limit'
-import pool from '../pg_db/db_config'
 
 const PORT = 4000
 const app = express()
@@ -24,4 +23,3 @@ app.listen(PORT, '0.0.0.0', () => {
 })
 
 export default app
-export { pool }
