@@ -63,6 +63,56 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 
+-- =========================================================
+-- AUTH_CREDENTIALS
+-- Stores authentication secrets and MFA data, separated
+-- from profile data for security isolation.
+-- =========================================================
+DROP TABLE IF EXISTS auth_credentials CASCADE;
+CREATE TABLE IF NOT EXISTS auth_credentials (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user (1:1 mapping)
+  password_hash TEXT NOT NULL,                                                -- Hashed password
+  mfa_secret TEXT,                                                            -- Optional MFA secret (e.g., TOTP key)
+  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Audit of last password change
+);
+
+
+-- =========================================================
+-- USER_CREATION_INFO
+-- Tracks how and when each user was created. 
+-- =========================================================
+DROP TABLE IF EXISTS user_creation_info CASCADE;
+CREATE TABLE IF NOT EXISTS user_creation_info (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user (1:1 mapping)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                             -- Timestamp of creation
+  creation_ip INET,                                                           -- IP address of creator
+  method VARCHAR(32)                                                          -- Method of creation (e.g., 'manual', 'invite')
+);
+
+-- =========================================================
+-- SYSTEM_ROLES
+-- System-wide global role definitions for authorization (RBAC).
+-- =========================================================
+DROP TABLE IF EXISTS system_roles CASCADE;
+CREATE TABLE IF NOT EXISTS system_roles (
+  id SERIAL PRIMARY KEY,                                                      -- Role ID
+  role VARCHAR(32) NOT NULL DEFAULT 'user'                                    -- Role name
+    CHECK (role IN ('admin', 'support', 'user')),
+  description TEXT                                                            -- Role description
+);
+
+
+-- ========================================================= 
+-- USER_ROLES 
+-- M:N mapping of users to system-wide global roles. 
+-- ========================================================= 
+DROP TABLE IF EXISTS user_roles CASCADE;
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,                     -- FK to user
+  role_id INTEGER REFERENCES system_roles(id) ON DELETE CASCADE,              -- FK to system_roles
+  PRIMARY KEY (user_id, role_id)                                              -- Composite PK avoids duplicates
+);
+
 
 -- =========================================================
 -- USER_SESSIONS
@@ -81,60 +131,20 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 );
 
 
-
 -- =========================================================
--- AUTH_CREDENTIALS
--- Stores authentication secrets and MFA data, separated
--- from profile data for security isolation.
+-- AUDIT LOGS
+-- Tracks actions performed on entities for audit purposes. 
 -- =========================================================
-DROP TABLE IF EXISTS auth_credentials CASCADE;
-CREATE TABLE IF NOT EXISTS auth_credentials (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user (1:1 mapping)
-  password_hash TEXT NOT NULL,                                                -- Hashed password
-  mfa_secret TEXT,                                                            -- Optional MFA secret (e.g., TOTP key)
-  last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Audit of last password change
+DROP TABLE IF EXISTS audit_logs CASCADE;
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,                                                      -- Log entry ID
+  entity_type VARCHAR(32) NOT NULL,                                           -- Type of entity (e.g., 'user', 'device', 'topic', etc.)
+  entity_id TEXT NOT NULL,                                                    -- ID of affected entity 
+  action VARCHAR(64) NOT NULL,                                                -- Action performed 
+  performed_by INTEGER REFERENCES users(id),                                  -- FK to user who performed action
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                              -- When the action occurred
+  details JSONB                                                               -- Additional info as JSON
 );
-
-
--- =========================================================
--- SYSTEM_ROLES
--- System-wide role definitions for authorization (RBAC).
--- M:N mapping of users to system-wide global roles.
--- =========================================================
-DROP TABLE IF EXISTS system_roles CASCADE;
-CREATE TABLE IF NOT EXISTS system_roles (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user
-  role_name VARCHAR(32) NOT NULL DEFAULT 'user'                               -- Role name
-    CHECK (role_name IN ('admin', 'support', 'user')),
-  description TEXT                                                            -- Optional description for role
-);
-
--- DELETE
-
--- =========================================================
--- GLOBAL_ROLES
--- System-wide role definitions for authorization (RBAC).
--- =========================================================
-DROP TABLE IF EXISTS global_roles CASCADE;
-CREATE TABLE IF NOT EXISTS global_roles (
-  id SERIAL PRIMARY KEY,                                                      -- Role ID
-  name VARCHAR(32) NOT NULL UNIQUE,                                           -- Role name (e.g., 'admin', 'support')
-  description TEXT                                                            -- Optional human-readable description
-);
-
--- DELETE
-
--- =========================================================
--- USER_GLOBAL_ROLES
--- M:N mapping of users to global roles. 
--- =========================================================
-DROP TABLE IF EXISTS user_global_roles CASCADE;
-CREATE TABLE IF NOT EXISTS user_global_roles (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,                     -- FK to user
-  role_id INTEGER REFERENCES global_roles(id) ON DELETE CASCADE,              -- FK to role
-  PRIMARY KEY (user_id, role_id)                                              -- Composite PK avoids duplicates
-);
-
 
 
 -- =========================================================
@@ -153,7 +163,6 @@ CREATE TABLE IF NOT EXISTS devices (
 );
 
 
-
 -- =========================================================
 -- DEVICES_CREDENTIALS 
 -- Authentication credentials for MQTT or other protocols. 
@@ -166,6 +175,19 @@ CREATE TABLE IF NOT EXISTS device_credentials (
   last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Last password change timestamp
 );
 
+
+-- =========================================================
+-- DEVICE_REGISTRATION_INFO
+-- Tracks how and when each device was registered.
+-- =========================================================
+DROP TABLE IF EXISTS device_registration_info CASCADE;
+CREATE TABLE IF NOT EXISTS device_registration_info (
+  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device
+  registered_by INTEGER REFERENCES users(id),                                 -- FK to registering user
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Timestamp of registration
+  registration_ip INET,                                                       -- IP address of registration
+  tool_used TEXT                                                              -- Tool used to register (e.g., CLI, web UI)
+);
 
 
 -- =========================================================
@@ -182,6 +204,19 @@ CREATE TABLE IF NOT EXISTS device_metadata (
 );
 
 
+-- =========================================================
+-- DEVICE_TOPIC_PERMISSIONS
+-- Permissions for publish/subscribe per device topic. 
+-- =========================================================
+DROP TABLE IF EXISTS device_topic_permissions CASCADE;
+CREATE TABLE IF NOT EXISTS device_topic_permissions (
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
+  topic TEXT NOT NULL,                                                        -- MQTT topic
+  can_publish BOOLEAN DEFAULT FALSE,                                          -- Publish permission
+  can_subscribe BOOLEAN DEFAULT FALSE,                                        -- Subscribe permission
+  PRIMARY KEY (device_id, topic)                                              -- Unique topic per device
+);
+
 
 -- =========================================================
 -- DEVICES_ROLES
@@ -190,10 +225,10 @@ CREATE TABLE IF NOT EXISTS device_metadata (
 DROP TABLE IF EXISTS device_roles CASCADE;
 CREATE TABLE IF NOT EXISTS device_roles (
   id SERIAL PRIMARY KEY,                                                      -- Device role ID
-  name VARCHAR(32) NOT NULL UNIQUE,                                           -- Role name (e.g., 'owner', 'viewer', 'maintainer')
+  role VARCHAR(32) NOT NULL DEFAULT 'guest'                                    -- Role name
+    CHECK (role IN ('owner', 'guest', 'viewer')),
   description TEXT                                                            -- Role description
 );
-
 
 
 -- =========================================================
@@ -213,69 +248,6 @@ CREATE TABLE IF NOT EXISTS user_device_map (
 );
 
 
-
--- =========================================================
--- DEVICE_TOPIC_PERMISSIONS
--- Permissions for publish/subscribe per device topic. 
--- =========================================================
-DROP TABLE IF EXISTS device_topic_permissions CASCADE;
-CREATE TABLE IF NOT EXISTS device_topic_permissions (
-  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
-  topic TEXT NOT NULL,                                                        -- MQTT topic
-  can_publish BOOLEAN DEFAULT FALSE,                                          -- Publish permission
-  can_subscribe BOOLEAN DEFAULT FALSE,                                        -- Subscribe permission
-  PRIMARY KEY (device_id, topic)                                              -- Unique topic per device
-);
-
-
-
--- =========================================================
--- AUDIT LOGS
--- Tracks actions performed on entities for audit purposes. 
--- =========================================================
-DROP TABLE IF EXISTS audit_logs CASCADE;
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id SERIAL PRIMARY KEY,                                                      -- Log entry ID
-  entity_type VARCHAR(32) NOT NULL,                                           -- Type of entity (e.g., 'user', 'device', 'topic', etc.)
-  entity_id INTEGER NOT NULL,                                                 -- ID of affected entity 
-  action VARCHAR(64) NOT NULL,                                                -- Action performed 
-  performed_by INTEGER REFERENCES users(id),                                  -- FK to user who performed action
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                              -- When the action occurred
-  details JSONB                                                               -- Additional info as JSON
-);
-
-
-
--- =========================================================
--- USER_CREATION_INFO
--- Tracks how and when each user was created. 
--- =========================================================
-DROP TABLE IF EXISTS user_creation_info CASCADE;
-CREATE TABLE IF NOT EXISTS user_creation_info (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user
-  created_by INTEGER REFERENCES users(id),                                    -- FK to creator (nullable for self-signup)
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                             -- Timestamp of creation
-  creation_ip INET,                                                           -- IP address of creator
-  method VARCHAR(32)                                                          -- Method of creation (e.g., 'manual', 'invite')
-);
-
-
-
--- =========================================================
--- DEVICE_REGISTRATION_INFO
--- Tracks how and when each device was registered.
--- =========================================================
-DROP TABLE IF EXISTS device_registration_info CASCADE;
-CREATE TABLE IF NOT EXISTS device_registration_info (
-  device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device
-  registered_by INTEGER REFERENCES users(id),                                 -- FK to registering user
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Timestamp of registration
-  registration_ip INET,                                                       -- IP address of registration
-  tool_used TEXT                                                              -- Tool used to register (e.g., CLI, web UI)
-);
-
-
-
 -- =========================================================
 -- INDEXES (Performance Optimization)
 -- =========================================================
@@ -287,3 +259,5 @@ CREATE INDEX idx_user_device_map_device_id ON user_device_map(device_id);       
 CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);                    -- Topic-based lookup
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);                               -- Sessions by user
 CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);                              -- Active sessions filter
+CREATE INDEX idx_users_active ON users(id) WHERE is_deleted = FALSE;                            -- Active users
+CREATE INDEX idx_devices_active ON devices(id) WHERE is_deleted = FALSE;                        -- Active devices
