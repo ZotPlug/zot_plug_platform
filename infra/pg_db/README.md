@@ -21,3 +21,5 @@ docker exec -it pg_db psql -U myuser -d mydb
 | `SELECT * FROM table_name;` | Show contents of a table     |
 | `\q`                   | Quit the psql shell              |
 
+# PostgreSQL DB ER Diagram
+<img width="1003" height="1239" alt="image" src="https://github.com/user-attachments/assets/40d37530-2d89-4afb-91e3-de9fd085493e" />
