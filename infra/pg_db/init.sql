@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at TIMESTAMP                                                        -- Timestamp when user was soft-deleted
 );
 
+
+
 -- =========================================================
 -- USER_SESSIONS
 -- Tracks active user sessions for security and auditing.
@@ -78,6 +80,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   revoked_at TIMESTAMP                                                        -- When session was revoked 
 );
 
+
+
 -- =========================================================
 -- AUTH_CREDENTIALS
 -- Stores authentication secrets and MFA data, separated
@@ -91,6 +95,22 @@ CREATE TABLE IF NOT EXISTS auth_credentials (
   last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Audit of last password change
 );
 
+
+-- =========================================================
+-- SYSTEM_ROLES
+-- System-wide role definitions for authorization (RBAC).
+-- M:N mapping of users to system-wide global roles.
+-- =========================================================
+DROP TABLE IF EXISTS system_roles CASCADE;
+CREATE TABLE IF NOT EXISTS system_roles (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,         -- FK to user
+  role_name VARCHAR(32) NOT NULL DEFAULT 'user'                               -- Role name
+    CHECK (role_name IN ('admin', 'support', 'user')),
+  description TEXT                                                            -- Optional description for role
+);
+
+-- DELETE
+
 -- =========================================================
 -- GLOBAL_ROLES
 -- System-wide role definitions for authorization (RBAC).
@@ -102,6 +122,8 @@ CREATE TABLE IF NOT EXISTS global_roles (
   description TEXT                                                            -- Optional human-readable description
 );
 
+-- DELETE
+
 -- =========================================================
 -- USER_GLOBAL_ROLES
 -- M:N mapping of users to global roles. 
@@ -112,6 +134,8 @@ CREATE TABLE IF NOT EXISTS user_global_roles (
   role_id INTEGER REFERENCES global_roles(id) ON DELETE CASCADE,              -- FK to role
   PRIMARY KEY (user_id, role_id)                                              -- Composite PK avoids duplicates
 );
+
+
 
 -- =========================================================
 -- DEVICES 
@@ -128,6 +152,8 @@ CREATE TABLE IF NOT EXISTS devices (
   deleted_at TIMESTAMP                                                        -- When device was soft-deleted
 );
 
+
+
 -- =========================================================
 -- DEVICES_CREDENTIALS 
 -- Authentication credentials for MQTT or other protocols. 
@@ -139,6 +165,8 @@ CREATE TABLE IF NOT EXISTS device_credentials (
   password_hash TEXT NOT NULL,                                                -- Hashed password for MQTT
   last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP                    -- Last password change timestamp
 );
+
+
 
 -- =========================================================
 -- DEVICES_METADATA
@@ -153,6 +181,8 @@ CREATE TABLE IF NOT EXISTS device_metadata (
   hw_capabilities JSONB                                                       -- JSON of hardware capabilities (for varied device types)
 );
 
+
+
 -- =========================================================
 -- DEVICES_ROLES
 -- Role definitions for per-device permissions. 
@@ -163,6 +193,8 @@ CREATE TABLE IF NOT EXISTS device_roles (
   name VARCHAR(32) NOT NULL UNIQUE,                                           -- Role name (e.g., 'owner', 'viewer', 'maintainer')
   description TEXT                                                            -- Role description
 );
+
+
 
 -- =========================================================
 -- USER_DEVICE_MAP
@@ -180,6 +212,8 @@ CREATE TABLE IF NOT EXISTS user_device_map (
   PRIMARY KEY (user_id, device_id)                                            -- Composite PK ensures uniqueness
 );
 
+
+
 -- =========================================================
 -- DEVICE_TOPIC_PERMISSIONS
 -- Permissions for publish/subscribe per device topic. 
@@ -192,6 +226,8 @@ CREATE TABLE IF NOT EXISTS device_topic_permissions (
   can_subscribe BOOLEAN DEFAULT FALSE,                                        -- Subscribe permission
   PRIMARY KEY (device_id, topic)                                              -- Unique topic per device
 );
+
+
 
 -- =========================================================
 -- AUDIT LOGS
@@ -208,6 +244,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   details JSONB                                                               -- Additional info as JSON
 );
 
+
+
 -- =========================================================
 -- USER_CREATION_INFO
 -- Tracks how and when each user was created. 
@@ -221,6 +259,8 @@ CREATE TABLE IF NOT EXISTS user_creation_info (
   method VARCHAR(32)                                                          -- Method of creation (e.g., 'manual', 'invite')
 );
 
+
+
 -- =========================================================
 -- DEVICE_REGISTRATION_INFO
 -- Tracks how and when each device was registered.
@@ -233,6 +273,8 @@ CREATE TABLE IF NOT EXISTS device_registration_info (
   registration_ip INET,                                                       -- IP address of registration
   tool_used TEXT                                                              -- Tool used to register (e.g., CLI, web UI)
 );
+
+
 
 -- =========================================================
 -- INDEXES (Performance Optimization)
