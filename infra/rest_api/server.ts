@@ -1,9 +1,8 @@
 import { Request, Response } from 'express'
-import app from './server_conf'
-
 import { test } from '../pg_db/postgres_actions'
 import { getAllUsers, getUserById, addUser } from '../pg_db/queries/users';
 import { getAllDevices } from '../pg_db/queries/devices';
+import app from './server_conf'
 
 // root route
 app.get('/', (req: Request, res: Response) => {
@@ -35,7 +34,7 @@ app.get('/api/users', async (req: Request, res: Response) => {
 		res.json(users)
 	} catch (err) {
 		console.error('Get users error:', err)
-        res.status(500).json({ error: 'Failed to fetch users' })
+		res.status(500).json({ error: 'Failed to fetch users' })
 	}
 })
 
@@ -45,19 +44,19 @@ app.get('/api/users/:id', async (req: Request, res: Response) => {
 		res.json(user)
 	} catch (err) {
 		console.error('Get user by ID error:', err)
-        res.status(500).json({ error: 'Failed to fetch user' })
+		res.status(500).json({ error: 'Failed to fetch user' })
 	}
-
 })
 
-app.post('/api/users', async (req: Request, res: Response) => {
+app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	try {
-		const { firstname, lastname, username, email } = req.body
-		const newUser = await addUser(firstname, lastname, username, email)
-		res.json(newUser)
+		console.log(req.body)
+		const { firstname, lastname, username, email, password } = req.body
+		const userId = await addUser({ firstname, lastname, username, email, password })
+		res.json({ userId })
 	} catch (err) {
-		console.error('Add user error:', err)
-        res.status(500).json({ error: 'Failed to add user' })
+		console.error('Failed to add user: ', err)
+		res.status(500).json({ error: `Failed to add user: ${err}` })
 	}
 })
 
@@ -68,8 +67,9 @@ app.get('/api/devices', async (req: Request, res: Response) => {
 		res.json(devices)
 	} catch (err) {
 		console.error('Get devices error:', err)
-        res.status(500).json({ error: 'Failed to fetch devices' })
+		res.status(500).json({ error: 'Failed to fetch devices' })
 	}
 })
+
 
 export default app
