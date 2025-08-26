@@ -1,7 +1,6 @@
 import { Request, Response } from 'express'
-import { test } from '../pg_db/postgres_actions'
-import { getAllUsers, getUserById, addUser } from '../pg_db/queries/users';
-import { getAllDevices } from '../pg_db/queries/devices';
+import { getAllUsers, getUserById, addUser, createSession } from '../pg_db/queries/users'
+import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
 
 // root route
@@ -13,18 +12,6 @@ app.get('/', (req: Request, res: Response) => {
 app.post('/api/data', (req: Request, res: Response) => {
 	console.log('Recieved: ', req.body)
 	res.json({ message: 'Data received', yourData: req.body })
-})
-
-app.get('/api/data/query', async (req: Request, res: Response) => {
-	// res.json({ message: "Query Recieved", yourData: await test() })
-	try {
-		const result = await test()
-		res.json({ message: 'Query Recieved', yourData: result })
-	} catch (err) {
-		console.error('Query error:', err)
-		res.status(500).json({ error: 'Failed to execute query' })
-	}
-
 })
 
 // user endpoints
@@ -50,13 +37,23 @@ app.get('/api/users/:id', async (req: Request, res: Response) => {
 
 app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	try {
-		console.log(req.body)
 		const { firstname, lastname, username, email, password } = req.body
 		const userId = await addUser({ firstname, lastname, username, email, password })
 		res.json({ userId })
 	} catch (err) {
 		console.error('Failed to add user: ', err)
 		res.status(500).json({ error: `Failed to add user: ${err}` })
+	}
+})
+
+app.post('/api/users/createSession', async (req: Request, res: Response) => {
+	try {
+		const { userId, ip, userAgent } = req.body
+		const sessionId = await createSession({ userId, ip, userAgent })
+		res.json({ sessionId })
+	} catch (err) {
+		console.error('Failed to create session: ', err)
+		res.status(500).json({ error: `Failed to create session: ${err}` })
 	}
 })
 

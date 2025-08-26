@@ -2,7 +2,7 @@
 // work in progress (Need to implement CRUD)
 import pool from '../db_config'
 import argon2 from "argon2"
-import { NewUser } from "./types/types"
+import { NewUser, NewSession } from "./types/types"
 
 // Get all users
 export async function getAllUsers() {
@@ -79,12 +79,12 @@ export async function addUser({ firstname, lastname, username, email, password }
     }
 }
 
-export async function createSession(userId: number, expiresAt: Date, ip: string, userAgent: string) {
+export async function createSession({ userId, ip, userAgent }: NewSession) {
     const { rows } = await pool.query<{ session_id: string }>(`
-    INSERT INTO user_sessions (user_id, expires_at, ip_address, user_agent)
-    VALUES ($1, $2, $3, $4)
-    RETURNING session_id
-    `, [userId, expiresAt, ip, userAgent])
+        INSERT INTO user_sessions (user_id, expires_at, ip_address, user_agent)
+        VALUES ($1, NOW() + interval '24 hours', $2, $3)
+        RETURNING session_id`
+        , [userId, ip, userAgent])
 
     return rows[0].session_id
 }
