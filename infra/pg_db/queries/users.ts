@@ -2,9 +2,8 @@
 // work in progress (Need to implement CRUD)
 import pool from '../db_config'
 import argon2 from "argon2"
-import { NewUser, NewSession } from "./types/types"
+import { NewUser, NewSession, BasicCreds } from "./types/types"
 
-// Get all users
 export async function getAllUsers() {
     const result = await pool.query(`
         SELECT id, firstname, lastname, username, email, email_verified, phone
@@ -15,7 +14,6 @@ export async function getAllUsers() {
     return result.rows
 }
 
-// Get a single user by ID
 export async function getUserById(userId: number) {
     const result = await pool.query(`
         SELECT *
@@ -26,17 +24,37 @@ export async function getUserById(userId: number) {
     return result.rows[0]
 }
 
-// Create user + password atomically
+export async function checkUserCreds({ email, password }: BasicCreds): Promise<{ valid: boolean, userId: string | null }> {
+    const normEmail = email.trim().toLowerCase()
+    const { rows } = await pool.query<{ password_hash: string, user_id: string }>(`
+        SELECT ac.password_hash, ac.user_id
+        FROM users u
+        JOIN auth_credentials ac ON ac.user_id = u.id
+        WHERE u.email = $1 AND u.is_deleted = FALSE
+        LIMIT 1
+    `, [normEmail])
+
+    const stored = rows[0]?.password_hash
+    const userId = rows[0]?.user_id
+
+    if (!stored) return { valid: false, userId: null }
+
+    try {
+        const res = await argon2.verify(stored, password)
+        return res ? { valid: true, userId: userId } : { valid: false, userId: null }
+    } catch {
+        return { valid: false, userId: null }
+    }
+}
+
 export async function addUser({ firstname, lastname, username, email, password }: NewUser): Promise<{ id: number }> {
     const client = await pool.connect()
     try {
         await client.query("BEGIN")
 
-        // Normalize inputs (helps with uniqueness)
         const normEmail = email.trim().toLowerCase()
         const normUsername = username.trim()
 
-        // 1) Create the user profile
         const { rows } = await client.query<{ id: number }>(`
           INSERT INTO users (firstname, lastname, username, email)
           VALUES ($1, $2, $3, $4)
@@ -44,7 +62,6 @@ export async function addUser({ firstname, lastname, username, email, password }
       `, [firstname.trim(), lastname.trim(), normUsername, normEmail])
         const userId = rows[0].id
 
-        // 2) Hash the password (Argon2id)
         const passwordHash = await argon2.hash(password, {
             type: argon2.argon2id,
             timeCost: 3,          // increase if your server can handle it
@@ -80,12 +97,23 @@ export async function addUser({ firstname, lastname, username, email, password }
 }
 
 export async function createSession({ userId, ip, userAgent }: NewSession) {
-    const { rows } = await pool.query<{ session_id: string }>(`
-        INSERT INTO user_sessions (user_id, expires_at, ip_address, user_agent)
-        VALUES ($1, NOW() + interval '24 hours', $2, $3)
-        RETURNING session_id`
-        , [userId, ip, userAgent])
+    const { rows } = await pool.query<{
+        session_id: string;
+        minutes_alive: number;
+    }>(
+        `
+    INSERT INTO user_sessions (user_id, expires_at, ip_address, user_agent)
+    VALUES ($1, NOW() + interval '12 hours', $2, $3)
+    RETURNING 
+      session_id,
+      EXTRACT(EPOCH FROM (expires_at - created_at)) / 60 AS minutes_alive
+    `,
+        [userId, ip, userAgent]
+    )
 
-    return rows[0].session_id
+    return {
+        sessionId: rows[0].session_id,
+        minutesAlive: Number(rows[0].minutes_alive),
+    }
 }
 

@@ -1,14 +1,18 @@
-export type NewUser = {
+export type BasicCreds = {
+    email: string,
+    password: string
+}
+
+export type NewUser = BasicCreds & {
     firstname: string,
     lastname: string,
     username: string,
-    email: string,
-    password: string,
 }
 
 export type NewSession = {
     userId: number,
-    expiresAt: Date,
     ip: string,
     userAgent: string
 }
+
+
