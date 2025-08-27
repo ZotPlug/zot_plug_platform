@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { getAllUsers, getUserById, addUser, createSession, checkUserCreds } from '../pg_db/queries/users'
+import { getAllUsers, getUserById, addUser, createSession, checkUserCreds, getSession } from '../pg_db/queries/users'
 import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
 
@@ -43,6 +43,16 @@ app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	} catch (err) {
 		console.error('Failed to add user: ', err)
 		res.status(500).json({ error: `Failed to add user: ${err}` })
+	}
+})
+
+app.post('/api/users/getSession', async (req: Request, res: Response) => {
+	try {
+		const { sessionId, userId } = await getSession({ sessionId: req.body.sessionId })
+		res.json({ sessionId, userId })
+	} catch (err) {
+		console.error('Failed to get session from db: ', err)
+		res.status(500).json({ error: `Failed to check creds: ${err}` })
 	}
 })
 

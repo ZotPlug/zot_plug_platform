@@ -15,4 +15,8 @@ export type NewSession = {
     userAgent: string
 }
 
+export type GetSession = {
+    sessionId: string
+}
+
 
