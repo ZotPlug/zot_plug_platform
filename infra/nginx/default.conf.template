@@ -34,53 +34,35 @@ server {
     listen 443 ssl http2;
     server_name zotplug.com www.zotplug.com;
 
-    ssl_certificate /etc/letsencrypt/live/zotplug.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/zotplug.com/privkey.pem;
+    # ... ssl + timeouts ...
 
-    # Recommended SSL settings
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
+    # ---- Common proxy defaults for ALL locations in this server ----
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-Host  $host;     # <— add this
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP         $remote_addr;
+    # ----------------------------------------------------------------
 
-    # Timeouts so hung req/ backends don't pin sockets
-    # ---- Upstream timeouts ----
-    proxy_connect_timeout 5s;
-    proxy_send_timeout 60s;
-    proxy_read_timeout 60s;
-    # ---------------------------
-
-    # Return 429 when throttled ( Nginx defaults to 503 on limit hits )
     error_page 503 = @rate_limited;
-    location @rate_limited {
-        add_header Retry-After 5 always;
-        default_type application/json;
-        return 429 '{"error" : "rate_limited"}';
-    }
+    location @rate_limited { ... }
 
-    # Proxy to Frontend
+    # Frontend
     location / {
-        proxy_pass http://frontend_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade    $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
+        proxy_pass http://frontend_upstream;
     }
 
-    # Proxy to API
+    # API (mobile_api -> backend)
     location /mobile_api/ {
-        limit_req zone=api_ip burst=20 nodelay;  # Allow short spikes up to 20
-        limit_conn perip 20;                    # Cap concurrent conns per IP
+        limit_req  zone=api_ip burst=20 nodelay;
+        limit_conn perip 20;
 
-        proxy_pass http://api_upstream/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade    $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
+        proxy_pass http://api_upstream/;  # (strips /mobile_api/ prefix)
     }
 }
 
