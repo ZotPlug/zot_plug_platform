@@ -1,5 +1,4 @@
 // all queries related to users, user_sessions, user_device_map, etc
-// work in progress (Need to implement CRUD)
 import pool from '../db_config'
 import argon2 from "argon2"
 import { NewUser, NewSession, BasicCreds, GetSession } from "./types/types"
