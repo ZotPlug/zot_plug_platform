@@ -1,9 +1,7 @@
 import { Request, Response } from 'express'
+import { getAllUsers, getUserById, addUser, createSession, checkUserCreds, getSession } from '../pg_db/queries/users'
+import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
-
-import { test } from '../pg_db/postgres_actions'
-import { getAllUsers, getUserById, addUser } from '../pg_db/queries/users';
-import { getAllDevices } from '../pg_db/queries/devices';
 
 // root route
 app.get('/', (req: Request, res: Response) => {
@@ -16,18 +14,6 @@ app.post('/api/data', (req: Request, res: Response) => {
 	res.json({ message: 'Data received', yourData: req.body })
 })
 
-app.get('/api/data/query', async (req: Request, res: Response) => {
-	// res.json({ message: "Query Recieved", yourData: await test() })
-	try {
-		const result = await test()
-		res.json({ message: 'Query Recieved', yourData: result })
-	} catch (err) {
-		console.error('Query error:', err)
-		res.status(500).json({ error: 'Failed to execute query' })
-	}
-
-})
-
 // user endpoints
 app.get('/api/users', async (req: Request, res: Response) => {
 	try {
@@ -35,7 +21,7 @@ app.get('/api/users', async (req: Request, res: Response) => {
 		res.json(users)
 	} catch (err) {
 		console.error('Get users error:', err)
-        res.status(500).json({ error: 'Failed to fetch users' })
+		res.status(500).json({ error: 'Failed to fetch users' })
 	}
 })
 
@@ -45,19 +31,54 @@ app.get('/api/users/:id', async (req: Request, res: Response) => {
 		res.json(user)
 	} catch (err) {
 		console.error('Get user by ID error:', err)
-        res.status(500).json({ error: 'Failed to fetch user' })
+		res.status(500).json({ error: 'Failed to fetch user' })
 	}
-
 })
 
-app.post('/api/users', async (req: Request, res: Response) => {
+app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	try {
-		const { firstname, lastname, username, email } = req.body
-		const newUser = await addUser(firstname, lastname, username, email)
-		res.json(newUser)
+		const { firstname, lastname, username, email, password } = req.body
+		const userId = await addUser({ firstname, lastname, username, email, password })
+		res.json({ userId })
 	} catch (err) {
-		console.error('Add user error:', err)
-        res.status(500).json({ error: 'Failed to add user' })
+		console.error('Failed to add user: ', err)
+		res.status(500).json({ error: `Failed to add user: ${err}` })
+	}
+})
+
+app.post('/api/users/getSession', async (req: Request, res: Response) => {
+	try {
+		const { sessionId, userId } = await getSession({ sessionId: req.body.sessionId })
+		res.json({ sessionId, userId })
+	} catch (err) {
+		console.error('Failed to get session from db: ', err)
+		res.status(500).json({ error: `Failed to check creds: ${err}` })
+	}
+})
+
+app.post('/api/users/createSession', async (req: Request, res: Response) => {
+	try {
+		const { userId, ip, userAgent } = req.body
+		const { sessionId, minutesAlive } = await createSession({ userId, ip, userAgent })
+		res.json({ sessionId, minutesAlive })
+	} catch (err) {
+		console.error('Failed to create session: ', err)
+		res.status(500).json({ error: `Failed to create session: ${err}` })
+	}
+})
+
+app.post('/api/users/checkUserCreds', async (req: Request, res: Response) => {
+	try {
+		const { email, password } = req.body
+		const result = await checkUserCreds({ email, password })
+		if (result.valid) {
+			res.json({ "valid": true, userId: result.userId })
+		} else {
+			res.json({ "valid": false })
+		}
+	} catch (err) {
+		console.error('Failed to check creds: ', err)
+		res.status(500).json({ error: `Failed to check creds: ${err}` })
 	}
 })
 
@@ -68,8 +89,9 @@ app.get('/api/devices', async (req: Request, res: Response) => {
 		res.json(devices)
 	} catch (err) {
 		console.error('Get devices error:', err)
-        res.status(500).json({ error: 'Failed to fetch devices' })
+		res.status(500).json({ error: 'Failed to fetch devices' })
 	}
 })
+
 
 export default app
