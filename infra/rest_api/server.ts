@@ -39,10 +39,17 @@ app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
 		const userId = await addUser({ firstname, lastname, username, email, password })
-		res.json({ userId })
+		res.json(userId)
 	} catch (err) {
+		if (err.code === '23505') { // unique_violation
+			if (err.constraint === 'users_username_key') res.status(400).json({ error: 'Username already taken' })
+			if (err.constraint === 'users_email_key') res.status(400).json({ error: 'Email already registered' })
+
+			res.status(400).json({ error: 'Duplicate value' })
+
+		}
+		res.status(500).json({ error: err })
 		console.error('Failed to add user: ', err)
-		res.status(500).json({ error: `Failed to add user: ${err}` })
 	}
 })
 
@@ -78,7 +85,7 @@ app.post('/api/users/checkUserCreds', async (req: Request, res: Response) => {
 		}
 	} catch (err) {
 		console.error('Failed to check creds: ', err)
-		res.status(500).json({ error: `Failed to check creds: ${err}` })
+		res.status(500).json({ error: err })
 	}
 })
 
