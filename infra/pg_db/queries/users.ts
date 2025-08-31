@@ -40,13 +40,13 @@ export async function checkUserCreds({ email, password }: BasicCreds): Promise<{
 
     try {
         const res = await argon2.verify(stored, password)
-        return res ? { valid: true, userId: userId } : { valid: false, userId: null }
+        return res ? { valid: true, userId } : { valid: false, userId: null }
     } catch {
         return { valid: false, userId: null }
     }
 }
 
-export async function addUser({ firstname, lastname, username, email, password }: NewUser): Promise<{ id: number }> {
+export async function addUser({ firstname, lastname, username, email, password }: NewUser): Promise<{ userId: number }> {
     const client = await pool.connect()
     try {
         await client.query("BEGIN")
@@ -75,20 +75,10 @@ export async function addUser({ firstname, lastname, username, email, password }
       `, [userId, passwordHash])
 
         await client.query("COMMIT")
-        return { id: userId }
+        return { userId }
     } catch (err: any) {
         await client.query("ROLLBACK")
 
-        // Helpful unique-constraint error mapping
-        if (err?.code === "23505") {
-            // You can inspect err.detail to see which constraint hit
-            if (String(err.detail || "").includes("(username)")) {
-                throw new Error("Username already exists")
-            }
-            if (String(err.detail || "").includes("(email)")) {
-                throw new Error("Email already exists")
-            }
-        }
         throw err
     } finally {
         client.release()
