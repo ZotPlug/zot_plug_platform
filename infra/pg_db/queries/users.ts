@@ -3,6 +3,9 @@ import pool from '../db_config'
 import argon2 from "argon2"
 import { NewUser, NewSession, BasicCreds, GetSession } from "./types/types"
 
+//=========================================================
+// READ
+//=========================================================
 export async function getAllUsers() {
     const result = await pool.query(`
         SELECT id, firstname, lastname, username, email, email_verified, phone
@@ -46,6 +49,25 @@ export async function checkUserCreds({ email, password }: BasicCreds): Promise<{
     }
 }
 
+export async function getSession({ sessionId }: GetSession) {
+    const { rows } = await pool.query<{ session_id: string, user_id: string }>(`
+        SELECT session_id, user_id
+        FROM user_sessions
+        WHERE session_id = $1 
+        LIMIT 1
+        `, [sessionId])
+
+    const session_id = rows[0]?.session_id
+    const user_id = rows[0]?.user_id
+
+    return session_id ? { sessionId: session_id, userId: user_id } : { sessionId: null, userId: null }
+}
+
+
+
+//=========================================================
+// CREATE
+//=========================================================
 export async function addUser({ firstname, lastname, username, email, password }: NewUser): Promise<{ userId: number }> {
     const client = await pool.connect()
     try {
@@ -106,17 +128,49 @@ export async function createSession({ userId, ip, userAgent }: NewSession) {
     }
 }
 
-export async function getSession({ sessionId }: GetSession) {
-    const { rows } = await pool.query<{ session_id: string, user_id: string }>(`
-        SELECT session_id, user_id
-        FROM user_sessions
-        WHERE session_id = $1 
-        LIMIT 1
-        `, [sessionId])
 
-    const session_id = rows[0]?.session_id
-    const user_id = rows[0]?.user_id
+//=========================================================
+// UPDATE
+//=========================================================
+export async function updateUser(userId: number, fields: Partial<NewUser>) {
+    const updates: string[] = []
+    const values: (string | number | boolean)[] = []
+    let idx = 1
 
-    return session_id ? { sessionId: session_id, userId: user_id } : { sessionId: null, userId: null }
+    for (const [key, value] of Object.entries(fields)) {
+        updates.push(`${key} = $${idx}`)
+        values.push(value)
+        idx++
+    }
+
+    if (updates.length == 0)
+        return null
+
+    const query = `
+        UPDATE users
+        SET ${updates.join(", ")}, updated_at = NOW()
+        WHERE id = $${idx} AND is_deleted = FALSE
+        RETURNING *
+    `
+
+    values.push(userId)
+    const { rows } = await pool.query(query, values)
+
+    return rows[0]
 }
 
+
+
+//=========================================================
+// DELETE
+//=========================================================
+export async function deleteUser(userId: number) {
+    const { rows } = await pool.query(`
+        UPDATE users
+        SET is_deleted = TRUE
+        WHERE id = $1
+        RETURNING id
+    `, [userId])
+
+    return rows[0]
+}

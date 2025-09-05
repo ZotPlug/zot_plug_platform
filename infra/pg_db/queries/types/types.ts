@@ -1,3 +1,8 @@
+// Defines all the reusable TypeScript interfaces for query functions
+// Schema Contract between API routes and DB
+
+// ----------- USERS -----------
+
 export type BasicCreds = {
     email: string,
     password: string
@@ -20,3 +25,15 @@ export type GetSession = {
 }
 
 
+// ----------- DEVICES -----------
+export interface NewDevice {
+    name: string,
+    userId: number
+}
+
+export interface UpdateDevice {
+    id: number,
+    name?: string,
+    status?: boolean,
+    powerUsage?: number
+}
