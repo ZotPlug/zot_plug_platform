@@ -21,6 +21,7 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    PG_USER=myuser
    PG_PASSWORD=mypassword
    PG_DATABASE=mydb
+   SIGNING_KEY=super_duper_secret
    ```
 3. **Start the development stack**
    Run with the `dev` profile to launch only development-specific containers:
