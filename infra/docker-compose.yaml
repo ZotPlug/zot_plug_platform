@@ -86,7 +86,7 @@ services:
     build: ./cron
     container_name: cron
     volumes:
-      - /home/pg_db/backups:/backups
+      - ${HOME}/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - zotplug_net
@@ -105,7 +105,7 @@ services:
     networks:
       - zotplug_net
     volumes:
-      - /home/pg_db/pgdata/:/var/lib/postgresql/data
+      - ${HOME}/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 networks:
