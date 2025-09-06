@@ -10,6 +10,7 @@ function authenticateToken(req, res, next) {
 
 	jwt.verify(token, SECRET_KEY, (err, user) => {
 		if (err) return res.sendStatus(401)
+		console.log("Made it past")
 		req.user = user
 		next()
 	})
@@ -40,3 +41,14 @@ export function craft_and_set_jwt(req, res) {
 		res.setHeader("Authorization", "Bearer " + token)
 	}
 }
+
+export function verifyToken(token: string): boolean {
+	try {
+		const decoded = jwt.verify(token, SECRET_KEY)
+		return true
+	} catch (err) {
+		return false
+	}
+}
+
+

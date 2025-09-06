@@ -1,8 +1,9 @@
 import { Request, Response } from 'express'
-import { craft_and_set_jwt } from './jwt_conf'
+import { craft_and_set_jwt, verifyToken } from './jwt_conf'
 import { getAllUsers, getUserById, addUser, createSession, checkUserCreds, getSession } from '../pg_db/queries/users'
 import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
+import { verify } from 'argon2'
 
 // root route
 app.get('/', (req: Request, res: Response) => {
@@ -90,6 +91,20 @@ app.post('/api/users/checkUserCreds', async (req: Request, res: Response) => {
 		}
 	} catch (err) {
 		console.error('Failed to check creds: ', err)
+		res.status(500).json({ error: err })
+	}
+})
+
+app.get('/api/users/checkUserJwt', async (req: Request, res: Response) => {
+	try {
+		console.log("Made it here")
+		const authHeader = req.headers["authorization"]
+		const token = authHeader && authHeader.split(" ")[1]
+		if (!token) res.status(401).json({ error: "Not Authorized - No Token" })
+		else if (!verifyToken(token)) res.status(401).json({ error: "Not Authorized - Invalid Token" })
+		res.status(200)
+	} catch (err) {
+		console.error('Failed to jwt creds: ', err)
 		res.status(500).json({ error: err })
 	}
 })
