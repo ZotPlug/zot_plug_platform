@@ -116,4 +116,7 @@ For complete setup instructions, see the [Setup Guide on Google Docs](https://do
 ## Database ER Diagram
 <img width="1003" height="1239" alt="image" src="https://github.com/user-attachments/assets/83eaf5d1-e5f6-4749-84fb-0ae83baaea2e" />
 
+## Auth Provision Workflow
+![Provision Workflow](diagrams/auth_prov_flow.png)
+
 
