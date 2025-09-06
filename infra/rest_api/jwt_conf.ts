@@ -14,7 +14,6 @@ function authenticateToken(req, res, next) {
 
 	jwt.verify(token, SECRET_KEY ?? "", (err) => {
 		if (err) return res.sendStatus(401)
-		console.log("Made it past")
 		next()
 	})
 }
@@ -23,16 +22,11 @@ export function authIfNotLocal(req, res, next) {
 	const host: string = req.get("host") || ""
 	const path: string = req.path
 
-	console.log(`Host: ${host}`)
-	console.log(`Path: ${path}`)
-
 	// Have to leave these endpoints open, to assign JWT
 	if (path.startsWith("/api/users/checkUserCreds") || path.startsWith("/api/users/addUser")) return next()
 	// Only request that would req a JWT are external/ mobile request. 
 	// Web, uses localhost ( on same network ) to hit API. Should be secure as is for web.
 	if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return next()
-
-	console.log("\nNon-local Request\n")
 
 	return authenticateToken(req, res, next)
 }
