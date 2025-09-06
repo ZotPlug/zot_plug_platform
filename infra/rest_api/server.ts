@@ -3,7 +3,6 @@ import { craft_and_set_jwt, verifyToken } from './jwt_conf'
 import { getAllUsers, getUserById, addUser, createSession, checkUserCreds, getSession } from '../pg_db/queries/users'
 import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
-import { verify } from 'argon2'
 
 // root route
 app.get('/', (req: Request, res: Response) => {
@@ -95,14 +94,17 @@ app.post('/api/users/checkUserCreds', async (req: Request, res: Response) => {
 	}
 })
 
-app.get('/api/users/checkUserJwt', async (req: Request, res: Response) => {
+app.post('/api/users/checkUserJwt', async (req: Request, res: Response) => {
 	try {
-		console.log("Made it here")
 		const authHeader = req.headers["authorization"]
 		const token = authHeader && authHeader.split(" ")[1]
-		if (!token) res.status(401).json({ error: "Not Authorized - No Token" })
-		else if (!verifyToken(token)) res.status(401).json({ error: "Not Authorized - Invalid Token" })
-		res.status(200)
+		if (!token) {
+			res.status(401).json({ error: "Not Authorized - No Token" })
+		}
+		else if (!verifyToken(token)) {
+			res.status(401).json({ error: "Not Authorized - Invalid Token" })
+		}
+		res.status(200).json({ ok: true })
 	} catch (err) {
 		console.error('Failed to jwt creds: ', err)
 		res.status(500).json({ error: err })

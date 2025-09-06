@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken'
 
-const SECRET_KEY = "super_duper_secret"
+const SECRET_KEY = process.env.SIGNING_KEY
+if (!SECRET_KEY) {
+	console.error("No signing key, in JWT_CONFIG")
+	process.exit(1)
+}
 
 function authenticateToken(req, res, next) {
 	const authHeader = req.headers["authorization"]
@@ -8,10 +12,9 @@ function authenticateToken(req, res, next) {
 
 	if (!token) return res.sendStatus(401)
 
-	jwt.verify(token, SECRET_KEY, (err, user) => {
+	jwt.verify(token, SECRET_KEY ?? "", (err) => {
 		if (err) return res.sendStatus(401)
 		console.log("Made it past")
-		req.user = user
 		next()
 	})
 }
@@ -36,7 +39,7 @@ export function authIfNotLocal(req, res, next) {
 
 export function craft_and_set_jwt(req, res) {
 	const host: string = req.get("host") || ""
-	const token = jwt.sign({}, SECRET_KEY, { expiresIn: "1h" })
+	const token = jwt.sign({}, SECRET_KEY ?? "", { expiresIn: "1h" })
 	if (!host.startsWith("localhost") || !host.startsWith("127.0.0.1")) {
 		res.setHeader("Authorization", "Bearer " + token)
 	}
@@ -44,7 +47,7 @@ export function craft_and_set_jwt(req, res) {
 
 export function verifyToken(token: string): boolean {
 	try {
-		const decoded = jwt.verify(token, SECRET_KEY)
+		const decoded = jwt.verify(token, SECRET_KEY ?? "")
 		return true
 	} catch (err) {
 		return false
