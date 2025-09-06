@@ -26,7 +26,7 @@ export function authIfNotLocal(req, res, next) {
 	if (path.startsWith("/api/users/checkUserCreds") || path.startsWith("/api/users/addUser")) return next()
 	// Only request that would req a JWT are external/ mobile request. 
 	// Web, uses localhost ( on same network ) to hit API. Should be secure as is for web.
-	if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return next()
+	if (host.startsWith("api:400") || host.startsWith("localhost") || host.startsWith("127.0.0.1")) return next()
 
 	return authenticateToken(req, res, next)
 }
