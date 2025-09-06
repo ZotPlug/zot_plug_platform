@@ -47,12 +47,24 @@ services:
   broker:
     build: ./broker_mqtt
     container_name: broker_mqtt
+    profiles: ["prod"]
     ports:
       - "1883:1883"
     networks:
       - zotplug_net
     depends_on:
       - postgres
+
+  broker-dev:
+    build: ./broker_mqtt
+    container_name: broker_mqtt
+    profiles: ["dev"]
+    ports:
+      - "1883:1883"
+    networks:
+      - zotplug_net
+    depends_on:
+      - postgres-dev
 
   api:
     build:
