@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express'
+import { authIfNotLocal } from './jwt_conf'
 import rateLimit from 'express-rate-limit'
 
 const PORT = 4000
@@ -16,6 +17,7 @@ const limiter = rateLimit({
 // Trust the proxy, and were one proxy hop from nginx
 app.set('trust proxy', 1)
 app.use(limiter)
+app.use(authIfNotLocal)
 app.use(express.json())
 
 app.listen(PORT, '0.0.0.0', () => {

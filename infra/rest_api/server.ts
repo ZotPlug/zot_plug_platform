@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { craft_and_set_jwt } from './jwt_conf'
 import { getAllUsers, getUserById, addUser, createSession, checkUserCreds, getSession } from '../pg_db/queries/users'
 import { getAllDevices } from '../pg_db/queries/devices'
 import app from './server_conf'
@@ -39,7 +40,9 @@ app.post('/api/users/addUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
 		const userId = await addUser({ firstname, lastname, username, email, password })
+		craft_and_set_jwt(req, res)
 		res.json(userId)
+
 	} catch (err) {
 		if (err.code === '23505') { // unique_violation
 			if (err.constraint === 'users_username_key') res.status(400).json({ error: 'Username already taken' })
@@ -76,8 +79,10 @@ app.post('/api/users/createSession', async (req: Request, res: Response) => {
 
 app.post('/api/users/checkUserCreds', async (req: Request, res: Response) => {
 	try {
-		const { email, password } = req.body
+		const { email, password } = await req.body
 		const result = await checkUserCreds({ email, password })
+		craft_and_set_jwt(req, res)
+
 		if (result.valid) {
 			res.json({ "valid": true, userId: result.userId })
 		} else {
