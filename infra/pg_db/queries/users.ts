@@ -143,7 +143,7 @@ export async function createSession({ userId, ip, userAgent }: NewSession) {
 
 
 //=========================================================
-// UPDATE
+// UPDATE - only allowed profile fields are updated
 //=========================================================
 export async function updateUser(userId: number, fields: UpdateUserFields): Promise<any | null> {
     const allowed = new Set(["firstname", "lastname", "username", "email", "phone", "email_verfied"])
