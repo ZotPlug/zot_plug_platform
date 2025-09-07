@@ -24,6 +24,15 @@ export type GetSession = {
     sessionId: string
 }
 
+export type UpdateUserFields = Partial<{
+    firstname: string,
+    lastname: string,
+    username: string,
+    email: string,
+    phone: string,
+    email_verified: boolean
+}>
+
 
 // ----------- DEVICES -----------
 export interface NewDevice {
@@ -34,6 +43,6 @@ export interface NewDevice {
 export interface UpdateDevice {
     id: number,
     name?: string,
-    status?: boolean,
-    powerUsage?: number
+    status?: "online" | "offline" | "error",
+    lastSeen?: string
 }
