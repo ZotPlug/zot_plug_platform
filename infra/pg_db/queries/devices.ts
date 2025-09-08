@@ -10,7 +10,7 @@ import { NewDevice, UpdateDevice } from "./types/types";
 //=========================================================
 export async function getAllDevices(): Promise<any[]> {
     const { rows } = await pool.query(`
-        SELECT * 
+        SELECT id, name, status 
         FROM devices 
         WHERE is_deleted = FALSE
         ORDER BY id
@@ -21,12 +21,35 @@ export async function getAllDevices(): Promise<any[]> {
 
 export async function getDeviceById(deviceId: number): Promise<any | null> {
     const { rows } = await pool.query(`
-        SELECT * 
+        SELECT id, name, status  
         FROM devices 
         WHERE id = $1 AND is_deleted = FALSE
     `, [deviceId])
 
     return rows[0] ?? null
+}
+
+export async function getAllDevicesByUserId(userId: number): Promise<any | null> {
+    const { rows } = await pool.query(`
+        SELECT 
+            d.id AS device_id,
+            d.name AS device_name,
+            d.status AS device_status,
+            d.last_seen,
+            u.role_id,
+            r.role AS role_name,
+            u.status AS user_device_status,
+            u.accepted_at
+        FROM devices d
+        JOIN user_device_map u 
+            ON d.id = u.device_id
+        LEFT JOIN device_roles r
+            ON u.role_id = r.id
+        WHERE u.user_id = $1 AND d.is_deleted = FALSE
+        ORDER BY d.id
+    `, [userId])
+
+    return rows ?? null
 }
 
 //=========================================================
@@ -62,8 +85,8 @@ export async function addDevice({ name, userId }: NewDevice): Promise<any> {
         
         } else {
             const { rows: newRoleRows } = await client.query<{ id: number}>(`
-                INSERT INTO devices_roles (role, description) 
-                VALUES ("owner', 'Device owner')
+                INSERT INTO device_roles (role, description) 
+                VALUES ('owner', 'Device owner')
                 RETURNING id
             `)
 

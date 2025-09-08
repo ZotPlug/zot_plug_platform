@@ -6,7 +6,9 @@ import {
     addDevice,
     updateDevice,
     deleteDevice,
+    getAllDevicesByUserId,
 } from '../../pg_db/queries/devices'
+import { get } from 'http'
 
 const router = Router()
 
@@ -16,7 +18,7 @@ const router = Router()
 router.get('/getAllDevices', async (req: Request, res: Response) => {
     try {
         const devices = await getAllDevices()
-        req.json(devices)
+        res.json(devices)
     
     } catch(err) {
         console.error('Get device error: ', err)
@@ -30,7 +32,7 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
  */
 router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     try {
-        const id = Number(req.param.id)
+        const id = Number(req.params.id)
         if (Number.isNaN(id))
             return res.status(400).json({ error: 'Invalid id' })
 
@@ -43,6 +45,28 @@ router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     } catch (err) {
         console.error('Get device by ID error: ', err)
         res.status(500).json({ error: 'Failed to fetch device' })
+    }
+})
+
+/**
+ * GET /api/devices/getAllDevicesByUserId/:id
+ */
+router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id)
+        if (Number.isNaN(id))
+            return res.status(400).json({ error: 'Invalid id' })
+
+
+        const devices = await getAllDevicesByUserId(id)
+        if (devices.length === 0)
+            return res.status(404).json({ error: 'No devices found for this user' })
+
+        res.json(devices)
+
+    } catch (err) {
+        console.error('Get devices by user ID error: ', err)
+        res.status(500).json({ error: 'Failed to fetch devices' })
     }
 })
 
@@ -109,7 +133,7 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
  */
 router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
     try {
-        const id = Number(req.param.id)
+        const id = Number(req.params.id)
         if (Number.isNaN(id))
             return res.status(400).json({ error: 'Invalid id' })
 
@@ -124,4 +148,4 @@ router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
     }
 })
 
-export default Router
+export default router
