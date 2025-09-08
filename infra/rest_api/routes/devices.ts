@@ -49,7 +49,7 @@ router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
 })
 
 /**
- * GET /api/devices/getAllDevicesByUserId/:id
+ * GET /api/devices/getAllDevicesByUserId/:id - get all devices by user ID
  */
 router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => {
     try {
