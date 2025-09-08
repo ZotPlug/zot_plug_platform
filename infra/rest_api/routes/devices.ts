@@ -3,12 +3,11 @@ import { Router, Request, Response } from 'express'
 import { 
     getAllDevices,
     getDeviceById,
+    getAllDevicesByUserId,
     addDevice,
     updateDevice,
     deleteDevice,
-    getAllDevicesByUserId,
 } from '../../pg_db/queries/devices'
-import { get } from 'http'
 
 const router = Router()
 
