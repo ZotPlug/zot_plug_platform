@@ -16,7 +16,7 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    ```
 2. **Create a .env file, with the following:**
    ```bash
-   PG_HOST=postgres
+   PG_HOST=postgres-dev
    PG_PORT=5432
    PG_USER=myuser
    PG_PASSWORD=mypassword
