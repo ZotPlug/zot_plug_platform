@@ -7,7 +7,7 @@
 1. Make sure the backend is up.
 2. Open a PostgreSQL shell inside the `pg_db` container:
 ```bash
-docker exec -it pg_db psql -U myuser -d mydb
+docker exec -it pg_db_dev psql -U myuser -d mydb
 #docker exec -it container_name -U username -d database_name
 
 ```
