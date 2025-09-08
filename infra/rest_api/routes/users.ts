@@ -15,10 +15,9 @@ import { craft_and_set_jwt, verifyToken } from '../jwt_conf'
 const router = Router()
 
 /**
- * GET /api/users - list users
+ * GET /api/users/getAllUsers - list users
  */
 router.get('/getAllUsers', async (req: Request, res: Response) => {
-    console.log('Hit /getAllUsers')
     try {
         const users = await getAllUsers()
         res.json(users)
@@ -30,9 +29,11 @@ router.get('/getAllUsers', async (req: Request, res: Response) => {
 })
 
 /**
- * GET /api/users/:id - get user_id
+ * GET /api/users/getUserById/:id - get user_id
  */
 router.get('/getUserById/:id', async (req: Request, res: Response) => {
+    console.log('Hit /getUserById/:id route with id:', req.params.id)
+
 	try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))
@@ -51,10 +52,10 @@ router.get('/getUserById/:id', async (req: Request, res: Response) => {
 })
 
 /**
- * POST /api/users - create user (signup)
+ * POST /api/users/createUser - create user (signup)
  * returns userId and token 
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/createUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
         if (!firstname || !lastname || !username || !email || !password)
@@ -81,9 +82,9 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 /**
- * PUT /api/users/:id - update allowed fields
+ * PUT /api/users/updateUser/:id - update allowed fields
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/updateUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))
@@ -112,9 +113,9 @@ router.put('/:id', async (req: Request, res: Response) => {
 })
 
 /**
- * DELETE /api/users/:id - soft delete
+ * DELETE /api/users/deleteUser/:id - soft delete
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/deleteUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))

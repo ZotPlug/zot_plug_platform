@@ -11,9 +11,9 @@ import {
 const router = Router()
 
 /**
- * GET /api/devices - list devices
+ * GET /api/devices/getAllDevices - list devices
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/getAllDevices', async (req: Request, res: Response) => {
     try {
         const devices = await getAllDevices()
         req.json(devices)
@@ -26,9 +26,9 @@ router.get('/', async (req: Request, res: Response) => {
 
 
 /**
- * GET /api/devices/:id
+ * GET /api/devices/getDeviceById/:id
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.param.id)
         if (Number.isNaN(id))
@@ -48,9 +48,9 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 
 /**
- * POST /api/devices - create device and map owner
+ * POST /api/devices/createDeviceMap - create device and map owner
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/createDeviceMap', async (req: Request, res: Response) => {
     try {
         const { name, userId } = req.body
         if (!name || !userId)
@@ -70,10 +70,10 @@ router.post('/', async (req: Request, res: Response) => {
 
 
 /**
- * PUT /api/devices/:id - partial update
+ * PUT /api/devices/updateDevice/:id - partial update
  */
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))
@@ -105,9 +105,9 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 
 /**
- * DELETE /api/devices/:id - soft delete
+ * DELETE /api/devices/deleteDevice/:id - soft delete
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.param.id)
         if (Number.isNaN(id))
