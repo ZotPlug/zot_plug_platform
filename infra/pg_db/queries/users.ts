@@ -25,7 +25,7 @@ export async function getAllUsers(): Promise<any[]> {
 
 export async function getUserById(userId: number): Promise<any | null> {
     const { rows } = await pool.query(`
-        SELECT *
+        SELECT id, firstname, lastname, username, email, email_verified, phone
         FROM users
         WHERE id = $1 AND is_deleted = FALSE
     `, [userId])

@@ -32,8 +32,6 @@ router.get('/getAllUsers', async (req: Request, res: Response) => {
  * GET /api/users/getUserById/:id - get user_id
  */
 router.get('/getUserById/:id', async (req: Request, res: Response) => {
-    console.log('Hit /getUserById/:id route with id:', req.params.id)
-
 	try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))
