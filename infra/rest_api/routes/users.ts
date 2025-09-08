@@ -17,7 +17,8 @@ const router = Router()
 /**
  * GET /api/users - list users
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/getAllUsers', async (req: Request, res: Response) => {
+    console.log('Hit /getAllUsers')
     try {
         const users = await getAllUsers()
         res.json(users)
@@ -31,7 +32,7 @@ router.get('/', async (req: Request, res: Response) => {
 /**
  * GET /api/users/:id - get user_id
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/getUserById/:id', async (req: Request, res: Response) => {
 	try {
         const id = Number(req.params.id)
         if (Number.isNaN(id))
