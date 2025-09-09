@@ -71,9 +71,9 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
 
 
 /**
- * POST /api/devices/createDeviceMap - create device and map owner
+ * POST /api/devices/addDeviceMap - create device and map owner
  */
-router.post('/createDeviceMap', async (req: Request, res: Response) => {
+router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
         const { name, userId } = req.body
         if (!name || !userId)

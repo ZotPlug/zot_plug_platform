@@ -50,10 +50,10 @@ router.get('/getUserById/:id', async (req: Request, res: Response) => {
 })
 
 /**
- * POST /api/users/createUser - create user (signup)
+ * POST /api/users/addUser - create user (signup)
  * returns userId and token 
  */
-router.post('/createUser', async (req: Request, res: Response) => {
+router.post('/addUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
         if (!firstname || !lastname || !username || !email || !password)
