@@ -34,12 +34,10 @@ router.get('/getAllUsers', async (req: Request, res: Response) => {
 router.get('/getUserById/:id', async (req: Request, res: Response) => {
 	try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id'})
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id'})
 
         const user = await getUserById(id)
-        if (!user) 
-            return res.status(404).json({ error: 'User not found' })
+        if (!user) return res.status(404).json({ error: 'User not found' })
 
         res.json(user)
     
@@ -56,8 +54,9 @@ router.get('/getUserById/:id', async (req: Request, res: Response) => {
 router.post('/addUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
-        if (!firstname || !lastname || !username || !email || !password)
+        if (!firstname || !lastname || !username || !email || !password) {
             return res.status(400).json({ error: 'Missing required fields' })
+        }
 
 		const result = await addUser({ firstname, lastname, username, email, password })
 		
@@ -85,21 +84,19 @@ router.post('/addUser', async (req: Request, res: Response) => {
 router.put('/updateUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
         const allowed = ['firstname', 'lastname', 'username', 'email', 'phone', 'email_verified']
         const payload: any = {}
-        for (const k of allowed)
-            if (req.body[k] !== undefined)
-                payload[k] = req.body[k]
 
-        if (Object.keys(payload).length === 0) 
-            return res.status(400).json({ error: 'No updatable fields provided' })
+        for (const k of allowed) {
+            if (req.body[k] !== undefined) payload[k] = req.body[k]
+        }
+
+        if (Object.keys(payload).length === 0) return res.status(400).json({ error: 'No updatable fields provided' })
 
         const updated = await updateUser(id, payload)
-        if (!updated)
-            return res.status(404).json({ error: 'User not found or no changed applied' })
+        if (!updated) return res.status(404).json({ error: 'User not found or no changed applied' })
 
         res.json(updated)
 
@@ -116,12 +113,10 @@ router.put('/updateUser/:id', async (req: Request, res: Response) => {
 router.delete('/deleteUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
         const deleted = await deleteUser(id)
-        if (!deleted)
-            return res.status(404).json({ error: 'User not found' })
+        if (!deleted) return res.status(404).json({ error: 'User not found' })
 
         res.json(deleted)
 
@@ -139,8 +134,9 @@ router.delete('/deleteUser/:id', async (req: Request, res: Response) => {
 router.post('/checkUserCreds', async (req: Request, res: Response) => {
 	try {
 		const { email, password } = await req.body
-        if (!email || !password)
+        if (!email || !password) {
             return res.status(400).json({ error: 'Missing email/password' })
+        }
 
 		const result = await checkUserCreds({ email, password })
 
@@ -163,8 +159,7 @@ router.post('/checkUserCreds', async (req: Request, res: Response) => {
 router.post('/createSession', async (req: Request, res: Response) => {
     try {
         const { userId, ip, userAgent } = req.body
-        if (!userId) 
-            return res.status(400).json({ error: 'Missing userId' })
+        if (!userId) return res.status(400).json({ error: 'Missing userId' })
 
         const { sessionId, minutesAlive } = await createSession({ userId, ip: ip ?? null, userAgent: userAgent ?? null })
         res.json({ sessionId, minutesAlive })
@@ -182,8 +177,7 @@ router.post('/createSession', async (req: Request, res: Response) => {
 router.post('/getSession', async (req: Request, res: Response) => {
 	try {
 		const { sessionId } = req.body
-        if (!sessionId)
-            return res.status(400).json({ error: 'Missing sessionId' })
+        if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' })
 
         const sess = await getSession({ sessionId })
         res.json(sess)
@@ -202,12 +196,9 @@ router.post('/checkUserJwt', async (req: Request, res: Response) => {
 	try {
 		const authHeader = req.headers["authorization"]
 		const token = authHeader && authHeader.split(" ")[1]
-		if (!token) 
-			return res.status(401).json({ error: "Not Authorized - No Token" })
+		if (!token) return res.status(401).json({ error: "Not Authorized - No Token" })
 		
-		if (!verifyToken(token)) 
-			return res.status(401).json({ error: "Not Authorized - Invalid Token" })
-		
+		if (!verifyToken(token)) return res.status(401).json({ error: "Not Authorized - Invalid Token" })
 		res.status(200).json({ ok: true })
 
 	} catch (err) {

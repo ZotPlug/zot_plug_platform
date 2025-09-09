@@ -32,12 +32,10 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
 router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
         const device = await getDeviceById(id)
-        if (!device)
-            return res.status(404).json({ error: 'Device not found' })
+        if (!device) return res.status(404).json({ error: 'Device not found' })
 
         res.json(device)
 
@@ -53,13 +51,11 @@ router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
 router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
 
         const devices = await getAllDevicesByUserId(id)
-        if (devices.length === 0)
-            return res.status(404).json({ error: 'No devices found for this user' })
+        if (devices.length === 0) return res.status(404).json({ error: 'No devices found for this user' })
 
         res.json(devices)
 
@@ -76,15 +72,13 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
 router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
         const { name, userId } = req.body
-        if (!name || !userId)
-            return res.status(400).json({ error: 'Missing name or userId' })
+        if (!name || !userId) return res.status(400).json({ error: 'Missing name or userId' })
 
         const device = await addDevice({ name, userId })
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505')
-            return res.status(409).json({ error:'Device name already exists' })
+        if (err?.code === '23505') return res.status(409).json({ error:'Device name already exists' })
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
@@ -99,24 +93,19 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
         const payload: any = {}
-        if (req.body.name !== undefined) 
-            payload.name = req.body.name
+        if (req.body.name !== undefined) payload.name = req.body.name
         
-        if (req.body.status !== undefined)
-            payload.status = req.body.status
+        if (req.body.status !== undefined) payload.status = req.body.status
 
-        if (req.body.last_seen !== undefined)
-            payload.last_seen = req.body.last_seen
+        if (req.body.last_seen !== undefined) payload.last_seen = req.body.last_seen
 
         payload.id = id
 
         const updated = await updateDevice(payload)
-        if (!updated)
-            return res.status(404).json({ error: 'Device not found or no changes applied' })
+        if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
 
         res.json(updated)
 
@@ -133,12 +122,10 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
 router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
-        if (Number.isNaN(id))
-            return res.status(400).json({ error: 'Invalid id' })
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
         const deleted = await deleteDevice(id)
-        if (!deleted) 
-            return res.status(404).json({ error: 'Device not found' })
+        if (!deleted) return res.status(404).json({ error: 'Device not found' })
 
         res.json(deleted)
     } catch (err) {

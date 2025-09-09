@@ -168,8 +168,7 @@ export async function updateUser(userId: number, fields: UpdateUserFields): Prom
         idx++
     }
 
-    if (updates.length === 0)
-        return null
+    if (updates.length === 0) return null
 
     const query = `
         UPDATE users
