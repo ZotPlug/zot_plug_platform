@@ -33,11 +33,6 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
 
 ## 🛠️Hardware Development Workflow
 
-### Dependencies
-
-- Arduino CLI for building and flashing
-- Serial monitor tool (arduino-cli monitor, minicom, etc.)
-
 ### **Pre-requisites**  
 1. Install **Node.js** and **npm**  
    [https://docs.npmjs.com/downloading-and-installing-node-js-and-npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
@@ -59,7 +54,10 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)  
    -or-  
    [Python Package Manage](https://docs.platformio.org/en/latest/core/installation/methods/pypi.html)
-  
+
+5. Install **Arduino CLI**:
+   [https://arduino.github.io/arduino-cli/0.32/installation/](https://arduino.github.io/arduino-cli/0.32/installation/)
+
 ### **Dev-Steps**  
 
 1. **Update Network Config**  
