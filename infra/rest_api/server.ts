@@ -1,24 +1,28 @@
-import express, { Request, Response } from 'express'
-import { test } from '../pg_db/postgres_actions'
+// rest_api/server.ts
+import { Request, Response } from 'express'
+import app from './server_conf'
+import usersRouter from './routes/users'
+import devicesRouter from './routes/devices'
+import { authIfNotLocal } from './jwt_conf'
 
-const app = express()
-const PORT = 4000;
+// apply authIfNotLocal 
+// allows local requests and opens signup/login
+app.use(authIfNotLocal)
 
-app.use(express.json())
-
+// root route
 app.get('/', (req: Request, res: Response) => {
 	res.json({ message: 'Ello from node.js rest server!' })
 })
 
+// test misc endpoint
 app.post('/api/data', (req: Request, res: Response) => {
 	console.log('Recieved: ', req.body)
 	res.json({ message: 'Data received', yourData: req.body })
 })
 
-app.get('/api/data/query', async (req: Request, res: Response) => {
-	res.json({ message: "Query Recieved", yourData: await test() })
-})
+// mount resource routers
+app.use('/api/users', usersRouter)
+app.use('/api/devices', devicesRouter)
 
-app.listen(PORT, '0.0.0.0', () => {
-	console.log(`Server running on port ${PORT}`)
-})
+export default app
+

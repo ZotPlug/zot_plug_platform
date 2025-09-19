@@ -6,7 +6,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "4000:4000"
     environment:
       - FRONTEND_HOST=frontend
       - BROKER_HOST=broker 
@@ -48,12 +47,24 @@ services:
   broker:
     build: ./broker_mqtt
     container_name: broker_mqtt
+    profiles: ["prod"]
     ports:
       - "1883:1883"
     networks:
       - zotplug_net
     depends_on:
       - postgres
+
+  broker-dev:
+    build: ./broker_mqtt
+    container_name: broker_mqtt
+    profiles: ["dev"]
+    ports:
+      - "1883:1883"
+    networks:
+      - zotplug_net
+    depends_on:
+      - postgres-dev
 
   api:
     build:
@@ -81,11 +92,12 @@ services:
     networks:
       - zotplug_net
     depends_on:
-      - postgres
+      - postgres-dev
 
   cron:
     build: ./cron
     container_name: cron
+    profiles: ["prod"]
     volumes:
       - /home/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
@@ -97,6 +109,7 @@ services:
   postgres:
     image: postgres:alpine
     container_name: pg_db
+    profiles: ["prod"]
     environment:
       - POSTGRES_USER=myuser
       - POSTGRES_PASSWORD=mypassword
@@ -107,6 +120,22 @@ services:
       - zotplug_net
     volumes:
       - /home/pg_db/pgdata/:/var/lib/postgresql/data
+      - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  postgres-dev:
+    image: postgres:alpine
+    container_name: pg_db_dev
+    profiles: ["dev"]
+    environment:
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - POSTGRES_DB=mydb
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - zotplug_net
+    volumes:
+      - ${HOME}/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 networks:
