@@ -1,12 +1,10 @@
 #include "../main.h"
 #include "./mqtt_config/mqtt_config.h"
 #include "./env_config/env_config.h"
-#include "./hardware_config/relay.h"
+#include "./hardware_config/current_sensor/sensor.h"
+#include "./hardware_config/relay/relay.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <EmonLib.h>
-
-EnergyMonitor emon1;
 
 const char* client_subscribe_topic = "plug/plug_000001/control/#";
 const char* client_publish_topic = "plug/plug_000001/data";
@@ -48,23 +46,22 @@ void mqttTask(void * parameter){
 
 // Hardware Task: Assigned to core 1, used to handle hardware logic/ sensor data collection.
 void hardwareTask(void * parameter){
+    /* === Testing Pins/ Config === */
     pinMode(ledPin_external, OUTPUT);
     pinMode(ledPin_internal, OUTPUT);
     pinMode(button_input, INPUT);
+    /* ============================ */
 
     /* === Relay + Serial Setup === */
     init_relay(relayPin);
     /* ============================ */
 
     /* current sensor */
-    analogSetPinAttenuation(currentSensorPin, ADC_11db);
-    analogReadResolution(12);
-    emon1.current(currentSensorPin, CURRENT_CAL);  // pin, calibration
+    init_current_sensor(currentSensorPin, CURRENT_CAL);
     /* ============================================ */
 
-    unsigned long lastCurrentPrint = 0;
-
     for(;;){
+        /* === Testing Logic === */
         if(digitalRead(button_input) == HIGH){
             publish_message(client_publish_topic, "65w", 50);
             digitalWrite(ledPin_internal , HIGH);
@@ -77,6 +74,7 @@ void hardwareTask(void * parameter){
             digitalWrite(ledPin_external, LOW);
             message_recieved = false;
         }
+        /* ============================ */
 
         /* === Relay Serial Command Handler === */
         relay_serial_command_handler(relayPin);
@@ -86,13 +84,7 @@ void hardwareTask(void * parameter){
            calcIrms(N) samples ~a few mains cycles (1480 is common).
            Tweak N if you want quicker/steadier reads.
         */
-        if (millis() - lastCurrentPrint >= 1000) {
-            double amps = emon1.calcIrms(1480);
-            Serial.print("Current (Irms): ");
-            Serial.print(amps, 2);
-            Serial.println(" A");
-            lastCurrentPrint = millis();
-        }
+        read_and_print_Irms();
 
         vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }

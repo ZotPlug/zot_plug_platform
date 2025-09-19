@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h> // For String
+#include <Arduino.h> 
 
 extern volatile boolean relayState;
 void init_relay(unsigned int relayPin);
