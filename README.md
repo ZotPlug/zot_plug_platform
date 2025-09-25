@@ -12,7 +12,7 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
 ### **Dev-Steps**  
 1. **Navigate to the backend infrastructure directory**
    ```bash
-   cd ./zot_plug/infra
+   cd ./zot_plug_platform/infra
    ```
 2. **Create a .env file, with the following:**
    ```bash
