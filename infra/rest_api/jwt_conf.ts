@@ -44,19 +44,28 @@ export function verifyToken(token: string): boolean {
 	}
 }
 
+function validPath(path: string, req: Request) {
+	const isCheckUserCreds = path.startsWith("/api/users/checkUserCreds")
+	const isUserPost = path.startsWith("/api/users") && req.method === 'POST'
+	const isTestRoute = path.startsWith("/api/test")
+	return isCheckUserCreds || isUserPost || isTestRoute
+}
+
+function validHost(host: string) {
+	return host.startsWith("api:400") || host.startsWith("localhost") || host.startsWith("127.0.0.1")
+}
+
 // update existing code to use authenticateToken
 export function authIfNotLocal(req, res, next) {
 	const host: string = req.get("host") || ""
 	const path: string = req.path
 
-	// keep addUser and login endpoints open
-	if (path.startsWith("/api/users/checkUserCreds") || path.startsWith("/api/users") && req.method === 'POST') 
-		return next()
+	// keep addUser, login, and test endpoints open
+	if (validPath(path, req)) return next()
 
 	// Only request that would req a JWT are external/ mobile request. 
 	// Web, uses localhost ( on same network ) to hit API. Should be secure as is for web.
-	if (host.startsWith("api:400") || host.startsWith("localhost") || host.startsWith("127.0.0.1")) 
-		return next()
+	if (validHost(host)) return next()
 
 	return authenticateToken(req, res, next)
 }
