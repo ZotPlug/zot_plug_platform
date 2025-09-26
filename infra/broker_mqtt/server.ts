@@ -2,7 +2,6 @@ import Aedes, { Client, PublishPacket } from 'aedes'
 import { matches } from 'mqtt-pattern'
 import net from 'net'
 
-
 /* START: MQTT Broker Config & authentication */
 const broker = new Aedes()
 const server = net.createServer(broker.handle)
