@@ -6,8 +6,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-const char* client_subscribe_topic = "plug/plug_000001/control/#";
-const char* client_publish_topic = "plug/plug_000001/data";
+const char* client_subscribe_topic = "zot_plug_000001/control/#";
+const char* client_publish_topic = "zot_plug_000001/data";
 
 /* Global Pin Config */
 const unsigned int ledPin_external = 22;

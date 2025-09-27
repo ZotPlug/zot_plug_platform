@@ -6,15 +6,15 @@ import net from 'net'
 const broker = new Aedes()
 const server = net.createServer(broker.handle)
 // Simple user ACL ( Replace with db in prod + hashed/radnom generated paswords )
-// Create bashh script called "reg_new_plug":
+// Create bashh script called "reg_new_plug"
 // That creates a unique client code, i.e: Hard set creds before MCU flash.
 // Also creates a new entry in our device db. That adds to the ACL bellow.
 const clients = {
-	'zot_plug_000001': { password: 'secret01', allowedPublish: ['plug/plug_000001/data'], allowedSubscribe: ['plug/plug_000001/control/#'] },
-	'zot_plug_000002': { password: 'secret02', allowedPublish: ['plug/plug_000002/data'], allowedSubscribe: ['plug/plug_000002/control/#'] },
-	'zot_plug_000003': { password: 'secret03', allowedPublish: ['plug/plug_000003/data'], allowedSubscribe: ['plug/plug_000003/control/#'] },
-	'zot_plug_000004': { password: 'secret04', allowedPublish: ['plug/plug_000004/data'], allowedSubscribe: ['plug/plug_000004/control/#'] },
-	'zot_plug_000005': { password: 'secret05', allowedPublish: ['plug/plug_000005/data'], allowedSubscribe: ['plug/plug_000005/control/#'] },
+	'zot_plug_000001': { password: 'secret01', allowedPublish: ['zot_plug_000001/data'], allowedSubscribe: ['zot_plug_000001/control/#'] },
+	'zot_plug_000002': { password: 'secret02', allowedPublish: ['zot_plug_000002/data'], allowedSubscribe: ['zot_plug_000002/control/#'] },
+	'zot_plug_000003': { password: 'secret03', allowedPublish: ['zot_plug_000003/data'], allowedSubscribe: ['zot_plug_000003/control/#'] },
+	'zot_plug_000004': { password: 'secret04', allowedPublish: ['zot_plug_000004/data'], allowedSubscribe: ['zot_plug_000004/control/#'] },
+	'zot_plug_000005': { password: 'secret05', allowedPublish: ['zot_plug_000005/data'], allowedSubscribe: ['zot_plug_000005/control/#'] },
 	'api': { password: 'apipass', allowedPublish: ['#'], allowedSubscribe: ['#'] },
 	'admin': { password: 'adminpass', allowedPublish: ['#'], allowedSubscribe: ['#'] },  // full access
 }
@@ -31,7 +31,7 @@ broker.authenticate = (client, username, password, callback) => {
 
 	const user = clients[username]
 	if (user && password?.toString() === user.password) {
-		console.log(`Client ${username} authenticated`)
+		console.log(`Client: ${username}, authenticated`)
 		client['username'] = username  // store username for later ACL checks
 		return callback(null, true)
 	}
@@ -57,7 +57,7 @@ broker.authorizeSubscribe = (client, sub, callback) => {
 /* END: MQTT Broker Config & authentication */
 
 /* START: General Purpose MQTT functions */
-const test_topic = "plug/plug_000001/control/test"
+const test_topic = "zot_plug_000001/control/test"
 const test_payload = "Test test payload"
 
 function publish_to_topic(topic: string, payload: string, client: Client | null) {
@@ -77,12 +77,13 @@ function publish_to_topic(topic: string, payload: string, client: Client | null)
 }
 
 broker.on('client', (client: Client) => {
-	console.log('Client connected:', client?.id)
+	const username = client['username']
+	console.log(`Client: ${username}, connected`)
 })
 
 broker.on('publish', (packet: PublishPacket, client: Client | null) => {
-	if (client) console.log(`Recieved Packet from: ${client.id} ${packet.payload.toString()}`)
-	publish_to_topic(test_topic, test_payload, client)
+	if (client) console.log(`Recieved Packet from: ${client['username']} ${packet.payload.toString()}`)
+	//publish_to_topic(test_topic, test_payload, client)
 })
 /* END: General Purpose MQTT functions */
 

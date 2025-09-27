@@ -1,6 +1,6 @@
 // rest_api/routes/devices.ts
 import { Router, Request, Response } from 'express'
-import { 
+import {
     getAllDevices,
     getDeviceById,
     getAllDevicesByUserId,
@@ -18,13 +18,12 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
     try {
         const devices = await getAllDevices()
         res.json(devices)
-    
-    } catch(err) {
+
+    } catch (err) {
         console.error('Get device error: ', err)
         res.status(500).json({ error: 'Failed to fetch devices' })
     }
 })
-
 
 /**
  * GET /api/devices/getDeviceById/:id
@@ -78,18 +77,16 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505') return res.status(409).json({ error:'Device name already exists' })
+        if (err?.code === '23505') return res.status(409).json({ error: 'Device name already exists' })
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
     }
 })
 
-
 /**
  * PUT /api/devices/updateDevice/:id - partial update
  */
-
 router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -97,7 +94,7 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
 
         const payload: any = {}
         if (req.body.name !== undefined) payload.name = req.body.name
-        
+
         if (req.body.status !== undefined) payload.status = req.body.status
 
         if (req.body.last_seen !== undefined) payload.last_seen = req.body.last_seen
@@ -114,7 +111,6 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to update device' })
     }
 })
-
 
 /**
  * DELETE /api/devices/deleteDevice/:id - soft delete
