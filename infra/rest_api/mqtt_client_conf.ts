@@ -1,8 +1,11 @@
 import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 
-let client: MqttClient | null = null;
+let client: MqttClient | null = null
+let reconnectAttempts = 0
+let maxReconnectAttempts = 5
 
 export function getMqttClient(): MqttClient {
+
 	if (client) return client;
 
 	const url = process.env.MQTT_URL ?? "mqtt://broker:1883";
@@ -19,7 +22,14 @@ export function getMqttClient(): MqttClient {
 	client = mqtt.connect(url, opts);
 
 	client.on("connect", () => console.log("[mqtt] connected"));
-	client.on("reconnect", () => console.log("[mqtt] reconnecting"));
+	client.on("reconnect", () => {
+		if (reconnectAttempts >= maxReconnectAttempts) {
+			reconnectAttempts = 0
+			client?.end(true)
+			console.log("[mqtt] max reconnectAttempts")
+		}
+		else ++reconnectAttempts
+	});
 	client.on("close", () => console.log("[mqtt] closed"));
 	client.on("error", (err) => console.error("[mqtt] error:", err.message));
 
