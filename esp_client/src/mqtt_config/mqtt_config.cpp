@@ -1,5 +1,4 @@
 #include "mqtt_config.h"
-#include <Arduino.h>
 #include <WiFi.h>
 
 WiFiClient espClient;
@@ -37,7 +36,7 @@ void reconnect(const char *client_id, const char *client_user, const char *clien
 
 void publish_message(const char* topic, const char* payload, unsigned int message_size ){
   char buffer[message_size];
-  snprintf(buffer, sizeof(buffer), "Data: %s", payload);
+  snprintf(buffer, sizeof(buffer), "%s", payload);
   client.publish(topic, buffer);
 }
 
@@ -54,7 +53,7 @@ void check_maintain_mqtt_connection(const char* client_id, const char* client_us
 	client.loop();
 }
 //-1 to account for the wildcard "#" char
-boolean val_incoming_topic(const char *topic, const char *client_subscribe_topic){
+boolean val_incoming_topic(const char* topic, const char* client_subscribe_topic){
   return strncmp(topic, client_subscribe_topic, strlen(client_subscribe_topic) - 1) == 0 ? true : false;
 }
 

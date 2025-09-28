@@ -1,6 +1,8 @@
 #include "main.h"
 #include "./src/env_config/env_config.h"
 
+Env env;
+
 void setup(){
   Serial.begin(115200);
 
@@ -9,7 +11,7 @@ void setup(){
       return;
   }
 
-  Env env = ensureEnvInNVS();
+  env = ensureEnvInNVS();
   if (!env.ok) {
     Serial.println("ENV not found in NVS and SPIFFS. Check config.env.");
     return;

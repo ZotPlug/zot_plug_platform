@@ -6,7 +6,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-const char* client_subscribe_topic = "zot_plug_000001/control/#";
+// Note: These values bellow need to placed in the .env file. 
+const char* client_subscribe_topic = "zot_plug_000001/cmd/#";
 const char* client_publish_topic = "zot_plug_000001/data";
 
 /* Global Pin Config */
@@ -36,7 +37,7 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
 // MQTT Task: Assigned to core 0, used to handle network logic, and maintain connection to server/mqtt Broker. 
 // ( Most likly don't have to touch, unless adding bluetooth )
 void mqttTask(void * parameter){
-    Env env = loadCredsFromNVS();
+    // Load env vars into mem
     connect_setup_mqtt(env.ssid.c_str(), env.pass.c_str(), env.mqtt.c_str(), 1883, fn_on_message_received);
     for(;;){
         check_maintain_mqtt_connection(env.cid.c_str(), env.cuser.c_str(), env.cpass.c_str(), client_subscribe_topic); 
@@ -84,7 +85,7 @@ void hardwareTask(void * parameter){
            calcIrms(N) samples ~a few mains cycles (1480 is common).
            Tweak N if you want quicker/steadier reads.
         */
-        read_and_print_Irms();
+        //read_and_print_Irms();
 
         vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }

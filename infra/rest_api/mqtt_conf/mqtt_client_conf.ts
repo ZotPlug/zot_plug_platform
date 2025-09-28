@@ -4,7 +4,7 @@ import { matches } from 'mqtt-pattern'
 let client: MqttClient | null = null
 let reconnectAttempts = 0
 let maxReconnectAttempts = 5
-const ALLOW: string[] = ["+/data", "+/control/#"]
+const ALLOW: string[] = ["+/data", "+/cmd/#"]
 const c = getMqttClient()
 
 export function topicAllowed(topic: string) {
