@@ -1,7 +1,9 @@
 #include "mqtt_config.h"
+#include "HardwareSerial.h"
 #include <WiFi.h>
 
 WiFiClient espClient;
+
 void setup_wifi(const char *ssid, const char *password){
   vTaskDelay(10 / portTICK_PERIOD_MS);
   Serial.println();
@@ -20,12 +22,14 @@ void setup_wifi(const char *ssid, const char *password){
 }
 
 PubSubClient client(espClient);
+
 void reconnect(const char *client_id, const char *client_user, const char *client_pass, const char* topic){
    while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     if (client.connect(client_id , client_user, client_pass)) {
       client.subscribe(topic);
       Serial.println("connected");
+      vTaskDelay(500 / portTICK_PERIOD_MS);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());

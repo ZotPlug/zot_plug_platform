@@ -39,7 +39,9 @@ Env loadCredsFromNVS() {
     prefs.isKey(K_MQTT_SERVER) &&
     prefs.isKey(K_CLIENT_ID) &&
     prefs.isKey(K_CLIENT_USER) &&
-    prefs.isKey(K_CLIENT_PASS);
+    prefs.isKey(K_CLIENT_PASS) &&
+    prefs.isKey(K_CLIENT_SUB) &&
+    prefs.isKey(K_CLIENT_PUB);
 
   if (hasAll) {
     e.ssid  = prefs.getString(K_SSID, "");
@@ -98,8 +100,6 @@ Env loadFromSPIFFS(const char* path) {
     if (eq < 0) continue;
     String k = line.substring(0, eq); k.trim();
     String v = line.substring(eq + 1); v.trim();
-   
-    Serial.println(k); 
 
     if (k == K_SSID)        e.ssid  = v;
     else if (k == K_PASS) e.pass  = v;
