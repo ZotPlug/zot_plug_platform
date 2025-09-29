@@ -8,9 +8,9 @@
 #include <PubSubClient.h>
 
 /* Global Pin Config */
-const unsigned int ledPin_external = 22;
+const unsigned int ledPin_external = 14;
 const unsigned int ledPin_internal = 2;
-const unsigned int button_input = 23; 
+const unsigned int button_input = 25; 
 const unsigned int relayPin = 26;      // Pin connected to relay
 const unsigned int currentSensorPin = 34;
 const float CURRENT_CAL = 50.0f; // calibration for 50A:1V CT
@@ -22,11 +22,12 @@ volatile boolean message_recieved = false;
 void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
     if (val_incoming_topic(topic, env.sub.c_str())) {
         const char* slash = strchr(topic, '/');
-        if (strcmp(slash + 1, "cmd/relay/off") == 0){
-            Serial.println("Relay Off");
-            turn_on_relay(relayPin);
-        } else if (strcmp(slash + 1, "cmd/relay/on") == 0){
+        if (strcmp(slash + 1, "cmd/relay/on") == 0){
             Serial.println("Relay On");
+            turn_on_relay(relayPin);
+        } else if (strcmp(slash + 1, "cmd/relay/off") == 0){
+            turn_off_relay(relayPin);
+            Serial.println("Relay off");
         }
 
         Serial.println("Message received");
@@ -90,7 +91,7 @@ void hardwareTask(void * parameter){
            calcIrms(N) samples ~a few mains cycles (1480 is common).
            Tweak N if you want quicker/steadier reads.
         */
-        //read_and_print_Irms();
+        read_and_print_Irms();
 
         vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }
