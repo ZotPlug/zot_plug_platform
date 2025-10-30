@@ -118,4 +118,8 @@ For complete setup instructions, see the [Setup Guide on Google Docs](https://do
 ## Auth Provision Workflow
 ![Provision Workflow](diagrams/auth_prov_flow.png)
 
+## Auth Provision Workflow
+![Hardware Schematic](diagrams/HW_SCHEMATIC_DIAGRAM.drawio_1.png)
+
+
 
