@@ -36,13 +36,13 @@ export type UpdateUserFields = Partial<{
 
 // ----------- DEVICES -----------
 export interface NewDevice {
-    name: string,
+    deviceName: string,
     userId: number
 }
 
 export interface UpdateDevice {
     id: number,
-    name?: string,
+    deviceName?: string,
     status?: "online" | "offline" | "error",
     lastSeen?: string
 }

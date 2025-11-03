@@ -1,9 +1,7 @@
 // all queries related to devices, device_credentials, device_metadata, device_roles, etc.
 // work in progress (Need to implement CRUD)
-
 import pool from "../db_config"
 import { NewDevice, UpdateDevice } from "./types/types";
-
 
 //=========================================================
 // READ
@@ -55,7 +53,7 @@ export async function getAllDevicesByUserId(userId: number): Promise<any | null>
 //=========================================================
 // CREATE
 //=========================================================
-export async function addDevice({ name, userId }: NewDevice): Promise<any> {
+export async function addDevice({ deviceName, userId }: NewDevice): Promise<any> {
     // we want to insert into devices and user_device_map atomically
     // so we do this in a transaction
 
@@ -67,7 +65,7 @@ export async function addDevice({ name, userId }: NewDevice): Promise<any> {
             INSERT INTO devices (name)
             VALUES ($1)
             RETURNING id, name, status, last_seen
-        `, [name.trim()])
+        `, [deviceName.trim()])
 
         const deviceId = deviceRows[0].id
 
@@ -82,9 +80,9 @@ export async function addDevice({ name, userId }: NewDevice): Promise<any> {
         let ownerRoleId: number;
         if (roleRows.length > 0) {
             ownerRoleId = roleRows[0].id
-        
+
         } else {
-            const { rows: newRoleRows } = await client.query<{ id: number}>(`
+            const { rows: newRoleRows } = await client.query<{ id: number }>(`
                 INSERT INTO device_roles (role, description) 
                 VALUES ('owner', 'Device owner')
                 RETURNING id
@@ -107,7 +105,7 @@ export async function addDevice({ name, userId }: NewDevice): Promise<any> {
 
         await client.query("COMMIT")
         return deviceRows[0]
-    
+
     } catch (err: any) {
         await client.query("ROLLBACK")
         throw err
@@ -120,14 +118,14 @@ export async function addDevice({ name, userId }: NewDevice): Promise<any> {
 //=========================================================
 // UPDATE
 //=========================================================
-export async function updateDevice({ id, name, status, lastSeen }: UpdateDevice): Promise<any | null> {
-    const updates : string[] = []
-    const values: (string | number )[] = []
+export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateDevice): Promise<any | null> {
+    const updates: string[] = []
+    const values: (string | number)[] = []
     let idx = 1
 
-    if (name !== undefined) {
+    if (deviceName !== undefined) {
         updates.push(`name = $${idx}`)
-        values.push(name)
+        values.push(deviceName)
         idx++
     }
 
@@ -143,7 +141,7 @@ export async function updateDevice({ id, name, status, lastSeen }: UpdateDevice)
         idx++
     }
 
-    if (updates.length === 0) 
+    if (updates.length === 0)
         return null
 
     const query = `
