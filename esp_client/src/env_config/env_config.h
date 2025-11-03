@@ -3,7 +3,7 @@
 #include <Arduino.h> // For String
 
 struct Env {
-    String ssid, pass, mqtt, cid, cuser, cpass;
+    String ssid, pass, mqtt, cid, cuser, cpass, sub, pub;
     bool ok = false;
 };
 

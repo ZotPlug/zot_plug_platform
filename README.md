@@ -21,6 +21,7 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
    PG_USER=myuser
    PG_PASSWORD=mypassword
    PG_DATABASE=mydb
+   MQTT_URL=mqtt://broker:1883
    SIGNING_KEY=super_duper_secret
    ```
 3. **Start the development stack**
@@ -116,5 +117,9 @@ For complete setup instructions, see the [Setup Guide on Google Docs](https://do
 
 ## Auth Provision Workflow
 ![Provision Workflow](diagrams/auth_prov_flow.png)
+
+## Hardware Diagram
+![Hardware Schematic](diagrams/HW_SCHEMATIC_DIAGRAM.drawio_1.png)
+
 
 
