@@ -191,16 +191,69 @@ CREATE TABLE IF NOT EXISTS device_registration_info (
 
 
 -- =========================================================
+-- POWER_READINGS
+-- Stores real-time and historical power usage metrics per device.
+-- =========================================================
+DROP TABLE IF EXISTS power_readings CASCADE;
+CREATE TABLE IF NOT EXISTS power_readings (
+  id SERIAL PRIMARY KEY,                                                      -- Metric entry ID
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
+  voltage FlOAT CHECK (voltage >= 0),                                         -- Measured voltage (V)
+  current FLOAT CHECK (current >= 0),                                         -- Measured current (A)
+  power FLOAT GENERATED ALWAYS AS (voltage * current) STORED,                 -- Instantaneous power (W)
+  cumulative_energy FLOAT DEFAULT 0 CHECK (cumulative_energy >= 0),           -- Cumulative energy (kWh)
+  recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP                             -- When the reading was taken
+);
+
+
+-- =========================================================
+-- DEVICE_ENERGY_STATS
+-- Aggregated energy usage per device over defined time periods.
+-- =========================================================
+DROP TABLE IF EXISTS device_energy_stats CASCADE;
+CREATE TABLE IF NOT EXISTS device_energy_stats (
+  id SERIAL PRIMARY KEY,
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,              -- FK to device
+  period_type VARCHAR(16) NOT NULL 
+    CHECK (period_type IN ('daily','weekly','monthly')),
+  period_start DATE NOT NULL,                                              -- Start of the period (e.g., '2025-11-08')
+  total_energy FLOAT DEFAULT 0 CHECK (total_energy >= 0),                  -- Total Wh in period
+  avg_power FLOAT DEFAULT 0 CHECK (avg_power >= 0),                        -- Mean power (optional)
+  max_power FLOAT DEFAULT 0 CHECK (max_power >= 0),                        -- Peak power
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Last recalculation
+  UNIQUE (device_id, period_type, period_start)                            -- Avoid duplicates
+);
+
+
+-- =========================================================
 -- DEVICES_METADATA
 -- Optional extended metadata for devices. 
 -- =========================================================
 DROP TABLE IF EXISTS device_metadata CASCADE;
 CREATE TABLE IF NOT EXISTS device_metadata (
   device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device (1:1 mapping)
+  image_url TEXT,                                                             -- URL to device image
   firmware_version VARCHAR(64),                                               -- Firmware version
   model VARCHAR(64),                                                          -- Model name/number  
   software_version VARCHAR(64),                                               -- Software version
   hw_capabilities JSONB                                                       -- JSON of hardware capabilities (for varied device types)
+);
+
+
+-- =========================================================
+-- DEVICE_POLICIES
+-- Defines custom usage restrictions or automation rules.
+-- =========================================================
+DROP TABLE IF EXISTS device_policies CASCADE;
+CREATE TABLE IF NOT EXISTS device_policies (
+  id SERIAL PRIMARY KEY,
+  device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+  daily_energy_limit FLOAT CHECK (daily_energy_limit >= 0),                -- Wh limit per day
+  allowed_start TIME,                                                      -- Earliest allowed operation time
+  allowed_end TIME,                                                        -- Latest allowed operation time
+  is_enforced BOOLEAN DEFAULT TRUE,                                        -- Whether policy is active
+  last_violation TIMESTAMP,                                                -- Last time limit was exceeded
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -225,7 +278,7 @@ CREATE TABLE IF NOT EXISTS device_topic_permissions (
 DROP TABLE IF EXISTS device_roles CASCADE;
 CREATE TABLE IF NOT EXISTS device_roles (
   id SERIAL PRIMARY KEY,                                                      -- Device role ID
-  role VARCHAR(32) NOT NULL DEFAULT 'guest'                                    -- Role name
+  role VARCHAR(32) NOT NULL DEFAULT 'guest'                                   -- Role name
     CHECK (role IN ('owner', 'guest', 'viewer')),
   description TEXT                                                            -- Role description
 );
