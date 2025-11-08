@@ -34,7 +34,6 @@ export type UpdateUserFields = Partial<{
     email_verified: boolean
 }>
 
-
 // ----------- DEVICES -----------
 export interface NewDevice {
     deviceName: string,
@@ -46,4 +45,36 @@ export interface UpdateDevice {
     deviceName?: string,
     status?: "online" | "offline" | "error",
     lastSeen?: string
+}
+
+export type ByDeviceName = {
+    deviceName: string
+}
+
+export interface NewPowerReading {
+    deviceName: string,
+    voltage? : number,
+    current? : number,
+    power? : number,
+    recordedAt?: string
+}
+
+export interface UpdateEnergyParams {
+    deviceName: string,
+    periodType: "daily" | "weekly" | "monthly",
+    periodStart: string,                                // YYYY-MM-DD
+    energyDeltaWh: number                               // energy to add in watt-hours
+}
+
+export interface UpdateDeviceMetadata {
+    deviceName: string,
+    imageUrl?: string,
+}
+
+export interface UpdateDevicePolicy {
+    deviceName: string,
+    dailyEnergyLimit?: number,                          // in watt-hours
+    allowedStart?: string,                               // HH:MM:SS
+    allowedEnd?: string                                  // HH:MM:SS
+    isEnforced?: boolean
 }
