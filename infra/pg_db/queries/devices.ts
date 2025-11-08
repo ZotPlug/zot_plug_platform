@@ -1,6 +1,6 @@
 // infra/pg_db/queries/devices.ts
 import pool from "../db_config"
-import { NewDevice, UpdateDevice } from "./types/types";
+import { NewDevice, NewPowerReading, UpdateDevice } from "./types/types";
 
 //=========================================================
 // READ
@@ -24,6 +24,16 @@ export async function getDeviceById(deviceId: number): Promise<any | null> {
     `, [deviceId])
 
     return rows[0] ?? null
+}
+
+export async function getDeviceIdByName(deviceName: string): Promise<number | null> {
+    const { rows } = await pool.query(`
+        SELECT id
+        FROM devices
+        WHERE name = $1 AND is_deleted = FALSE LIMIT 1
+    `, [deviceName.trim()])
+
+    return rows[0]?.id ?? null
 }
 
 export async function getAllDevicesByUserId(userId: number): Promise<any | null> {
@@ -113,6 +123,87 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
         client.release()
     }
 }
+
+
+export async function addPowerReadingByName(payload: NewPowerReading): Promise<any> {
+    const { deviceName, voltage, current, power, recordedAt } = payload
+    const deviceId = await getDeviceIdByName(deviceName)
+
+    if (!deviceId) {
+        throw new Error(`Device with name ${deviceName} not found`)
+    }
+
+    const client = await pool.connect()
+    try {
+        await client.query("BEGIN")
+
+        // Determine recorded time 
+        const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : (await client.query(`SELECT NOW()`)).rows[0].now
+
+        // Compute power if missing
+        let instPower = power;
+        if (instPower === undefined) {
+            if (voltage !== undefined && current !== undefined) {
+                instPower = voltage * current
+            } else {
+                throw new Error("Insufficient data to compute power reading")
+            }
+        }
+
+        // Get last reading for this device and lock it to avoid concurrent races
+        const { rows: lastRows } = await client.query(
+        `SELECT id, cumulative_energy, recorded_at
+            FROM power_readings
+            WHERE device_id = $1
+            ORDER BY recorded_at DESC
+            LIMIT 1
+            FOR UPDATE`,
+            
+            [deviceId]
+        );
+
+        let lastCumulative = 0;
+        let lastRecordedAt: Date | null = null;
+        
+        if (lastRows.length > 0) {
+            lastCumulative = Number(lastRows[0].cumulative_energy) || 0;
+            lastRecordedAt = lastRows[0].recorded_at ? new Date(lastRows[0].recorded_at) : null;
+        }
+
+        // cCmpute time delta in hours
+        let deltaHours = 0;
+        const recDate = new Date(recordedAtVal);
+        
+        if (lastRecordedAt) {
+            const ms = recDate.getTime() - lastRecordedAt.getTime();
+            deltaHours = Math.max(0, ms / (1000 * 60 * 60));                    // don't allow negative (out-of-order readings)
+        } else {
+            // first reading: we can't compute an energy delta confidently -> assume 0 (or you may choose to approximate).
+            deltaHours = 0;
+        }
+
+        const deltaEnergyWh = instPower * deltaHours;               // W * hours = Wh
+        const newCumulative = lastCumulative + deltaEnergyWh;
+
+        const insertRes = await client.query(`
+            INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *`,
+            [deviceId, voltage ?? null, current ?? null, instPower, newCumulative, recDate.toISOString()]
+        );
+
+        await client.query("COMMIT");
+        return insertRes.rows[0];
+    
+    } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+    
+    } finally {
+        client.release();
+    }
+}
+
 
 //=========================================================
 // UPDATE
