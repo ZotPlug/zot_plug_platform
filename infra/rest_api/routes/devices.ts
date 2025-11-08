@@ -1,4 +1,4 @@
-// rest_api/routes/devices.ts
+// infra/rest_api/routes/devices.ts
 import { Router, Request, Response } from 'express'
 import {
     getAllDevices,
