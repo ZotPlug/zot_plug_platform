@@ -18,6 +18,11 @@ const float CURRENT_CAL = 50.0f; // calibration for 50A:1V CT
 /* Global Flags */
 volatile boolean message_recieved = false;
 
+/* General Global Vars */
+const unsigned int one_minute = 60000;
+unsigned long lastSendingTime = 0;
+unsigned int timeInterval = 0;
+
 // When the server sends a message to this device. Via "client_subscribe_topic", decide what to do with it here.
 void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
     if (val_incoming_topic(topic, env.sub.c_str())) {
@@ -40,6 +45,14 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
     }
 }
 
+void send_power_reading(){
+    if(millis() - lastSendingTime >= timeInterval){
+                String s = String(get_and_reset_power_total(PowerCalcMode::test), 9); 
+                publish_message(env.pub.c_str(), s.c_str() , 50);
+                lastSendingTime = millis();
+    }
+}
+
 // MQTT Task: Assigned to core 0, used to handle network logic, and maintain connection to server/mqtt Broker. 
 // ( Most likly don't have to touch, unless adding bluetooth )
 void mqttTask(void * parameter){
@@ -59,12 +72,13 @@ void hardwareTask(void * parameter){
     pinMode(button_input, INPUT);
     /* ============================ */
 
-    /* === Relay + Serial Setup === */
+    /* === Relay + Serial setup === */
     init_relay(relayPin);
     /* ============================ */
 
-    /* current sensor */
+    /* === current sensor setup === */
     init_current_sensor(currentSensorPin, CURRENT_CAL);
+    timeInterval = one_minute * .25; // Set interval, in which you send power data to backend
     /* ============================================ */
 
     for(;;){
@@ -91,7 +105,8 @@ void hardwareTask(void * parameter){
            calcIrms(N) samples ~a few mains cycles (1480 is common).
            Tweak N if you want quicker/steadier reads.
         */
-        read_and_print_Irms();
+        //read_and_print_Irms();
+        send_power_reading();
 
         vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }
