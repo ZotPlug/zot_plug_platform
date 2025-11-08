@@ -1,5 +1,4 @@
-// all queries related to devices, device_credentials, device_metadata, device_roles, etc.
-// work in progress (Need to implement CRUD)
+// infra/pg_db/queries/devices.ts
 import pool from "../db_config"
 import { NewDevice, UpdateDevice } from "./types/types";
 

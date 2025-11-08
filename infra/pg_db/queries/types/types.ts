@@ -1,5 +1,6 @@
 // Defines all the reusable TypeScript interfaces for query functions
 // Schema Contract between API routes and DB
+// infra/pg_db/queries/types/types.ts
 
 // ----------- USERS -----------
 
