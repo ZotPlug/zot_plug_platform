@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS device_registration_info (
 -- =========================================================
 DROP TABLE IF EXISTS power_readings CASCADE;
 CREATE TABLE IF NOT EXISTS power_readings (
-  id SERIAL PRIMARY KEY,                                                      -- Metric entry ID
+  id BIGSERIAL PRIMARY KEY,                                                   -- Metric entry ID
   device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
   voltage FlOAT CHECK (voltage >= 0),                                         -- Measured voltage (V)
   current FLOAT CHECK (current >= 0),                                         -- Measured current (A)
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS power_readings (
 -- =========================================================
 DROP TABLE IF EXISTS device_energy_stats CASCADE;
 CREATE TABLE IF NOT EXISTS device_energy_stats (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,              -- FK to device
   period_type VARCHAR(16) NOT NULL 
     CHECK (period_type IN ('daily','weekly','monthly')),
@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS device_metadata (
 -- =========================================================
 DROP TABLE IF EXISTS device_policies CASCADE;
 CREATE TABLE IF NOT EXISTS device_policies (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
   daily_energy_limit FLOAT CHECK (daily_energy_limit >= 0),                -- Wh limit per day
   allowed_start TIME,                                                      -- Earliest allowed operation time
@@ -301,16 +301,88 @@ CREATE TABLE IF NOT EXISTS user_device_map (
 );
 
 
+
 -- =========================================================
 -- INDEXES (Performance Optimization)
 -- =========================================================
-CREATE INDEX idx_users_email ON users(email);                                                   -- Lookup by email
-CREATE INDEX idx_users_username ON users(username);                                             -- Lookup by username
-CREATE INDEX idx_device_credentials_mqtt_username ON device_credentials(mqtt_username);         -- MQTT auth lookup 
-CREATE INDEX idx_user_device_map_user_id ON user_device_map(user_id);                           -- Device by user
-CREATE INDEX idx_user_device_map_device_id ON user_device_map(device_id);                       -- User by device
-CREATE INDEX idx_topic_permissions_topic ON device_topic_permissions(topic);                    -- Topic-based lookup
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);                               -- Sessions by user
-CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);                              -- Active sessions filter
-CREATE INDEX idx_users_active ON users(id) WHERE is_deleted = FALSE;                            -- Active users
-CREATE INDEX idx_devices_active ON devices(id) WHERE is_deleted = FALSE;                        -- Active devices
+
+-- =========================================================
+-- USERS & AUTHENTICATION
+-- =========================================================
+CREATE UNIQUE INDEX idx_users_email ON users(email);                         -- Fast login/email lookups (unique)
+CREATE UNIQUE INDEX idx_users_username ON users(username);                   -- Fast login/username lookups (unique)
+CREATE INDEX idx_users_active ON users(id) 
+  WHERE is_deleted = FALSE;                                                  -- Filter for active (non-deleted) users
+CREATE INDEX idx_auth_last_pw_change 
+  ON auth_credentials(last_password_change);                                 -- Track recent password change events
+
+-- =========================================================
+-- DEVICES & DEVICE CREDENTIALS
+-- =========================================================
+CREATE UNIQUE INDEX idx_device_credentials_mqtt_username 
+  ON device_credentials(mqtt_username);                                      -- MQTT authentication lookup
+CREATE INDEX idx_devices_active 
+  ON devices(id) 
+  WHERE is_deleted = FALSE;                                                  -- Filter for active devices (ignores deleted)
+CREATE INDEX idx_device_last_seen 
+  ON devices(last_seen);                                                     -- Useful for listing recently active devices
+
+-- =========================================================
+-- USER–DEVICE RELATIONSHIPS
+-- =========================================================
+CREATE INDEX idx_user_device_map_user_id 
+  ON user_device_map(user_id);                                               -- Find all devices linked to a user
+CREATE INDEX idx_user_device_map_device_id 
+  ON user_device_map(device_id);                                             -- Find all users linked to a device
+
+-- =========================================================
+-- TOPIC PERMISSIONS
+-- =========================================================
+CREATE INDEX idx_topic_permissions_topic 
+  ON device_topic_permissions(topic);                                        -- Efficient topic-based permission checks
+
+-- =========================================================
+-- USER SESSIONS
+-- =========================================================
+CREATE INDEX idx_user_sessions_user_id 
+  ON user_sessions(user_id);                                                 -- Lookup sessions for a user
+CREATE INDEX idx_user_sessions_active 
+  ON user_sessions(is_active) 
+  WHERE is_active = TRUE;                                                    -- Filter active sessions (for logout checks)
+
+-- =========================================================
+-- POWER READINGS (time-series data)
+-- =========================================================
+CREATE INDEX idx_power_device_time_desc 
+  ON power_readings(device_id, recorded_at DESC);                            -- Fast retrieval of latest readings per device
+CREATE INDEX idx_power_recorded_at 
+  ON power_readings(recorded_at);                                            -- Global time-based queries or cleanup jobs
+-- (Optional) For very large datasets, consider partitioning + BRIN on recorded_at
+-- CREATE INDEX idx_power_recorded_at_brin ON power_readings USING BRIN (recorded_at);
+
+-- =========================================================
+-- ENERGY STATISTICS (aggregates)
+-- =========================================================
+CREATE UNIQUE INDEX idx_energy_device_period 
+  ON device_energy_stats(device_id, period_type, period_start);              -- Ensure one record per device per period
+CREATE INDEX idx_energy_period_start 
+  ON device_energy_stats(period_start);                                      -- Filter/aggregate by date range
+
+-- =========================================================
+-- DEVICE POLICIES
+-- =========================================================
+CREATE INDEX idx_policy_device 
+  ON device_policies(device_id);                                             -- Find policies per device
+CREATE INDEX idx_policy_device_active 
+  ON device_policies(device_id) 
+  WHERE is_enforced = TRUE;                                                  -- Fast lookup for enforced/active policies
+
+-- =========================================================
+-- AUDIT LOGS (optional but useful for admin tools)
+-- =========================================================
+CREATE INDEX idx_audit_entity_time 
+  ON audit_logs(entity_type, timestamp DESC);                                -- Filter recent actions by entity type
+CREATE INDEX idx_audit_performed_by 
+  ON audit_logs(performed_by);                                               -- List actions performed by a specific user
+-- CREATE INDEX idx_audit_details_gin 
+--   ON audit_logs USING GIN (details);                                      -- (Optional) Enables JSONB search inside 'details'
