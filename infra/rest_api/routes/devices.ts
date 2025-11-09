@@ -7,6 +7,8 @@ import {
     addDevice,
     updateDevice,
     deleteDevice,
+    addPowerReadingByDeviceName,
+    getLatestReadingByDeviceName
 } from '../../pg_db/queries/devices'
 
 const router = Router()
@@ -129,5 +131,94 @@ router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to delete device' })
     }
 })
+
+
+/**
+ * PUT /api/devices/updateEnergyUsage
+ */
+router.put('/updateEnergyUsage', async (req: Request, res: Response) => {
+    try {
+        const { deviceName, cumulativeEnergy } = req.body
+        if (!deviceName || cumulativeEnergy === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
+
+        const latest = await getLatestReadingByDeviceName(deviceName)
+        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current: latest.current,
+            power: latest.power,
+            cumulativeEnergy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update energy usage error:', err)
+        res.status(500).json({ error: 'Failed to update energy usage' })
+    }
+})
+
+/**
+ * PUT /api/devices/updatePower
+ */
+router.put('/updatePower', async (req: Request, res: Response) => {
+    try {
+        const { deviceName, power } = req.body
+        if (!deviceName || power === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or power' })
+
+        const latest = await getLatestReadingByDeviceName(deviceName)
+        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current: latest.current,
+            power,
+            cumulativeEnergy: latest.cumulative_energy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update power error:', err)
+        res.status(500).json({ error: 'Failed to update power' })
+    }
+})
+
+/**
+ * PUT /api/devices/updateCurrent
+ */
+router.put('/updateCurrent', async (req: Request, res: Response) => {
+    try {
+        const { deviceName, current } = req.body
+        if (!deviceName || current === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or current' })
+
+        const latest = await getLatestReadingByDeviceName(deviceName)
+        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current,
+            power: latest.power,
+            cumulativeEnergy: latest.cumulative_energy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update current error:', err)
+        res.status(500).json({ error: 'Failed to update current' })
+    }
+})
+
 
 export default router
