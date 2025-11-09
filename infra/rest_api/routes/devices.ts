@@ -185,14 +185,17 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
  */
 router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
-        const { name, userId } = req.body
-        if (!name || !userId) return res.status(400).json({ error: 'Missing name or userId' })
+        const { deviceName, userId } = req.body
+        if (!deviceName || !userId) 
+            return res.status(400).json({ error: 'Missing name or userId' })
 
-        const device = await addDevice({ name, userId })
+        const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505') return res.status(409).json({ error: 'Device name already exists' })
+        if (err?.code === '23505') 
+            return res.status(409).json({ error: 'Device name already exists' })
+        
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
@@ -234,11 +237,13 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
 
 
 /**
- * PUT /api/devices/updateEnergyUsage
+ * PUT /api/devices/updateEnergyUsage/:deviceName
  */
-router.put('/updateEnergyUsage', async (req: Request, res: Response) => {
+router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response) => {
     try {
-        const { deviceName, cumulativeEnergy } = req.body
+        const { deviceName } = req.params
+        const { cumulativeEnergy } = req.body
+
         if (!deviceName || cumulativeEnergy === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
 
@@ -263,11 +268,13 @@ router.put('/updateEnergyUsage', async (req: Request, res: Response) => {
 })
 
 /**
- * PUT /api/devices/updatePower
+ * PUT /api/devices/updatePower/:deviceName
  */
-router.put('/updatePower', async (req: Request, res: Response) => {
+router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
     try {
-        const { deviceName, power } = req.body
+        const { deviceName } = req.params
+        const { power } = req.body
+
         if (!deviceName || power === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or power' })
 
@@ -292,11 +299,13 @@ router.put('/updatePower', async (req: Request, res: Response) => {
 })
 
 /**
- * PUT /api/devices/updateCurrent
+ * PUT /api/devices/updateCurrent/:deviceName
  */
-router.put('/updateCurrent', async (req: Request, res: Response) => {
+router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => {
     try {
-        const { deviceName, current } = req.body
+        const { deviceName } = req.params
+        const { current } = req.body
+        
         if (!deviceName || current === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or current' })
 
