@@ -4,14 +4,23 @@ import {
     getAllDevices,
     getDeviceById,
     getAllDevicesByUserId,
+    getDeviceIdByName,
+    getAllReadingsByDeviceName,
+    getLatestReadingByDeviceName,
+    getEnergyStatsByDeviceName,
+    getDevicePolicy,
+    getFaultyDevices,
     addDevice,
+    addPowerReadingByDeviceName,
     updateDevice,
     deleteDevice,
-    addPowerReadingByDeviceName,
-    getLatestReadingByDeviceName
 } from '../../pg_db/queries/devices'
 
 const router = Router()
+
+//=========================================================
+// READ
+//=========================================================
 
 /**
  * GET /api/devices/getAllDevices - list devices
@@ -66,6 +75,110 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
     }
 })
 
+/**
+ * GET /api/devices/getDeviceIdByName/:deviceName
+ */
+router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const deviceName = req.params.deviceName
+        if (!deviceName) return res.status(400).json({ error: 'Missing device name' })
+
+        const deviceId = await getDeviceIdByName(deviceName)
+        if (!deviceId) return res.status(404).json({ error: 'Device not found' })
+
+        res.json({ deviceName, id: deviceId })
+
+    } catch (err) {
+        console.error('Get device ID by name error:', err)
+        res.status(500).json({ error: 'Failed to fetch device ID' })
+    }
+})
+
+/**
+ * GET /api/devices/getReadingsByDeviceName/:deviceName
+ */
+router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { from, to } = req.query
+
+        // Can still filter by date if desired:
+        const allReadings = await getAllReadingsByDeviceName(deviceName)
+        if (!allReadings) return res.status(404).json({ error: 'Device not found' })
+
+        let filtered = allReadings
+        if (from)
+            filtered = filtered.filter(r => new Date(r.recorded_at) >= new Date(from as string))
+        if (to)
+            filtered = filtered.filter(r => new Date(r.recorded_at) <= new Date(to as string))
+
+        res.json(filtered)
+
+    } catch (err) {
+        console.error('Get readings by device error:', err)
+        res.status(500).json({ error: 'Failed to fetch readings' })
+    }
+})
+
+/**
+ * GET /api/devices/getLatestReading/:deviceName
+ */
+router.get('/getLatestReading/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const latest = await getLatestReadingByDeviceName(deviceName)
+        if (!latest) return res.status(404).json({ error: 'No readings found' })
+        res.json(latest)
+    } catch (err) {
+        console.error('Get latest reading error:', err)
+        res.status(500).json({ error: 'Failed to fetch latest reading' })
+    }
+})
+
+router.get('/getEnergyStats/:deviceName/:periodType/:periodStart', async (req: Request, res: Response) => {
+    try {
+        const { deviceName, periodType, periodStart } = req.params
+        const stats = await getEnergyStatsByDeviceName(deviceName, periodType as any, periodStart)
+        if (!stats) return res.status(404).json({ error: 'Device or stats not found' })
+        res.json(stats)
+    } catch (err) {
+        console.error('Get energy stats error:', err)
+        res.status(500).json({ error: 'Failed to fetch energy stats' })
+    }
+})
+
+router.get('/getDevicePolicy/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const policy = await getDevicePolicy(deviceName)
+        if (!policy) return res.status(404).json({ error: 'No policy found' })
+        res.json(policy)
+    } catch (err) {
+        console.error('Get device policy error:', err)
+        res.status(500).json({ error: 'Failed to fetch device policy' })
+    }
+})
+
+
+/**
+ * GET /api/devices/getFaultyDevices - list faulty devices
+ */
+router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
+    try {
+        const faultyDevices = await getFaultyDevices()
+        res.json(faultyDevices)
+    } catch (err) {
+        console.error('Get faulty devices error:', err)
+        res.status(500).json({ error: 'Failed to fetch faulty devices' })
+    }
+})
+
+
+
+
+//=========================================================
+// CREATE
+//=========================================================
 
 /**
  * POST /api/devices/addDeviceMap - create device and map owner
@@ -85,6 +198,11 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 
     }
 })
+
+
+//=========================================================
+// UPDATE
+//=========================================================
 
 /**
  * PUT /api/devices/updateDevice/:id - partial update
@@ -111,24 +229,6 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     } catch (err) {
         console.error('Update device error: ', err)
         res.status(500).json({ error: 'Failed to update device' })
-    }
-})
-
-/**
- * DELETE /api/devices/deleteDevice/:id - soft delete
- */
-router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
-    try {
-        const id = Number(req.params.id)
-        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
-
-        const deleted = await deleteDevice(id)
-        if (!deleted) return res.status(404).json({ error: 'Device not found' })
-
-        res.json(deleted)
-    } catch (err) {
-        console.error('Delete device error', err)
-        res.status(500).json({ error: 'Failed to delete device' })
     }
 })
 
@@ -220,5 +320,28 @@ router.put('/updateCurrent', async (req: Request, res: Response) => {
     }
 })
 
+
+
+//=========================================================
+// DELETE
+//=========================================================
+
+/**
+ * DELETE /api/devices/deleteDevice/:id - soft delete
+ */
+router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id)
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
+
+        const deleted = await deleteDevice(id)
+        if (!deleted) return res.status(404).json({ error: 'Device not found' })
+
+        res.json(deleted)
+    } catch (err) {
+        console.error('Delete device error', err)
+        res.status(500).json({ error: 'Failed to delete device' })
+    }
+})
 
 export default router

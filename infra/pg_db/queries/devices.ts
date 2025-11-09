@@ -134,6 +134,22 @@ export async function getAllReadingsByDeviceName(deviceName: string) {
     return rows ?? []
 }
 
+export async function getFaultyDevices(): Promise<any[]> {
+    try {
+        const { rows } = await pool.query(`
+            SELECT id, name, empty_payload_count, last_seen, is_faulty
+            FROM devices
+            WHERE is_faulty = TRUE 
+              AND is_deleted = FALSE
+            ORDER BY last_seen DESC NULLS LAST
+        `)
+        return rows
+    } catch (err) {
+        console.error('Error fetching faulty devices:', err)
+        throw err
+    }
+}
+
 
 //=========================================================
 // CREATE
@@ -204,29 +220,56 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
 export async function addPowerReadingByDeviceName(payload: NewPowerReading): Promise<any> {
     const { deviceName, voltage, current, power, cumulativeEnergy, recordedAt } = payload
     const deviceId = await getDeviceIdByName(deviceName)
-
     if (!deviceId) throw new Error(`Device not found ${deviceName}`)
     
+    const isEmptyPayload = !voltage && !current && !power && !cumulativeEnergy
     const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : new Date().toISOString()
 
-    // backend calculates power if not provided
-    let instPower = power;
-    if (instPower === undefined) {
-        if (voltage !== undefined && current !== undefined) {
-            instPower = voltage * current
-        } else {
-            throw new Error("Insufficient data to compute power reading")
-        }
-    }   
+    // safety net: fallback to zero if payload is empty or missing fields
+    const safeVoltage = voltage ?? 0
+    const safeCurrent = current ?? 0
+    const instPower = voltage !== undefined && current !== undefined ? voltage * current : undefined
+    const safePower = power ?? instPower ?? 0
+    const safeCumulativeEnergy = cumulativeEnergy ?? 0
 
-    // backend calculates cumulative energy 
-    // insert what backend sends
+    // insert into DB - always inserting a valid numeric record
     const { rows } = await pool.query(`
         INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *`, 
-        [deviceId, voltage ?? null, current ?? null, instPower, payload.cumulativeEnergy ?? 0, recordedAtVal]
+        [deviceId, safeVoltage, safeCurrent, safePower, safeCumulativeEnergy, recordedAtVal]
     )
+
+    // handle case where all fields are missing/zero
+    if (isEmptyPayload) {
+        // fetch updated count 
+        const { rows: [{ empty_payload_count }] } = await pool.query(`
+            WITH updated AS (
+                UPDATE devices
+                SET empty_payload_count = COALESCE(empty_payload_count, 0) + 1
+                WHERE id = $1
+                RETURNING empty_payload_count
+            )
+            SELECT empty_payload_count FROM updated
+        `, [deviceId])
+
+        // if count exceeds threshold, mark device as faulty
+        if (empty_payload_count >= 5) {
+            console.warn(`[ALERT] Device ${deviceName} has sent ${empty_payload_count} empty payloads!.`)
+            await pool.query(`
+                UPDATE devices
+                SET is_faulty = TRUE
+                WHERE id = $1
+            `, [deviceId])
+        }
+    } else {
+        // reset empty_payload_count on valid reading
+        await pool.query(`
+            UPDATE devices
+            SET empty_payload_count = 0, is_faulty = FALSE
+            WHERE id = $1
+        `, [deviceId])
+    }
 
     return rows[0]
 }

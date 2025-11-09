@@ -158,6 +158,8 @@ CREATE TABLE IF NOT EXISTS devices (
   status VARCHAR(32) DEFAULT 'offline'                                        -- Current device state
     CHECK (status IN ('online', 'offline', 'error')),                         
   last_seen TIMESTAMP,                                                        -- Last heartbeat/ping
+  empty_payload_count INTEGER DEFAULT 0,                                      -- Count of empty/malformed payloads received
+  is_faulty BOOLEAN DEFAULT FALSE,                                            -- Flag for faulty devices
   is_deleted BOOLEAN DEFAULT FALSE,                                           -- Soft-delete flag
   deleted_at TIMESTAMP                                                        -- When device was soft-deleted
 );
