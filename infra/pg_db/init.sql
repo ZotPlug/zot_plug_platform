@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS power_readings (
   device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,                 -- FK to device
   voltage FlOAT CHECK (voltage >= 0),                                         -- Measured voltage (V)
   current FLOAT CHECK (current >= 0),                                         -- Measured current (A)
-  power FLOAT GENERATED ALWAYS AS (voltage * current) STORED,                 -- Instantaneous power (W)
+  power FLOAT CHECK (power >= 0),                                             -- Instantaneous power (W)
   cumulative_energy FLOAT DEFAULT 0 CHECK (cumulative_energy >= 0),           -- Cumulative energy (kWh)
   recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP                             -- When the reading was taken
 );
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS device_energy_stats (
   period_type VARCHAR(16) NOT NULL 
     CHECK (period_type IN ('daily','weekly','monthly')),
   period_start DATE NOT NULL,                                              -- Start of the period (e.g., '2025-11-08')
-  total_energy FLOAT DEFAULT 0 CHECK (total_energy >= 0),                  -- Total Wh in period
+  total_energy FLOAT DEFAULT 0 CHECK (total_energy >= 0),                  -- Total Wh in period (daily, weekly, monthly)
   avg_power FLOAT DEFAULT 0 CHECK (avg_power >= 0),                        -- Mean power (optional)
   max_power FLOAT DEFAULT 0 CHECK (max_power >= 0),                        -- Peak power
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Last recalculation
@@ -253,7 +253,8 @@ CREATE TABLE IF NOT EXISTS device_policies (
   allowed_end TIME,                                                        -- Latest allowed operation time
   is_enforced BOOLEAN DEFAULT TRUE,                                        -- Whether policy is active
   last_violation TIMESTAMP,                                                -- Last time limit was exceeded
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP                           -- Last update time
 );
 
 

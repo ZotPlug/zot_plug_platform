@@ -1,6 +1,12 @@
 // infra/pg_db/queries/devices.ts
 import pool from "../db_config"
-import { NewDevice, NewPowerReading, UpdateDevice } from "./types/types";
+import { 
+    NewDevice, 
+    NewPowerReading, 
+    UpdateDevice, 
+    UpdateDeviceMetadata,
+    UpdateDevicePolicy
+} from "./types/types";
 
 //=========================================================
 // READ
@@ -58,6 +64,76 @@ export async function getAllDevicesByUserId(userId: number): Promise<any | null>
 
     return rows ?? null
 }
+
+export async function getLatestReadingByDeviceName(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings 
+        WHERE device_id = $1 
+        ORDER BY recorded_at DESC LIMIT 1`,
+        [deviceId]
+    )
+    
+    return rows[0] ?? null
+}
+
+export async function getEnergyStatsByDeviceName(deviceName: string, periodType: 'daily'|'weekly'|'monthly', periodStart: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT total_energy, avg_power, max_power, period_type, period_start, updated_at
+        FROM device_energy_stats
+        WHERE device_id = $1 AND period_type = $2 AND period_start = $3
+        LIMIT 1`,
+        [deviceId, periodType, periodStart]
+    )
+
+    // return zeros if no stats found 
+    return rows[0] ?? { 
+        period_type: periodType, 
+        period_start: periodStart,
+        updated_at: null, 
+        total_energy: 0, 
+        avg_power: 0, 
+        max_power: 0 
+    }
+}
+
+
+export async function getDevicePolicy(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT daily_energy_limit, allowed_start, allowed_end, is_enforced, created_at 
+        FROM device_policies 
+        WHERE device_id = $1 
+        LIMIT 1`, 
+        [deviceId]
+    )
+
+    return rows[0] ?? null
+}
+
+export async function getAllReadingsByDeviceName(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings
+        WHERE device_id = $1
+        ORDER BY recorded_at DESC`,
+        [deviceId]
+    )
+
+    return rows ?? []
+}
+
 
 //=========================================================
 // CREATE
@@ -125,83 +201,34 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
 }
 
 
-export async function addPowerReadingByName(payload: NewPowerReading): Promise<any> {
-    const { deviceName, voltage, current, power, recordedAt } = payload
+export async function addPowerReadingByDeviceName(payload: NewPowerReading): Promise<any> {
+    const { deviceName, voltage, current, power, cumulativeEnergy, recordedAt } = payload
     const deviceId = await getDeviceIdByName(deviceName)
 
-    if (!deviceId) {
-        throw new Error(`Device with name ${deviceName} not found`)
-    }
+    if (!deviceId) throw new Error(`Device not found ${deviceName}`)
+    
+    const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : new Date().toISOString()
 
-    const client = await pool.connect()
-    try {
-        await client.query("BEGIN")
-
-        // Determine recorded time 
-        const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : (await client.query(`SELECT NOW()`)).rows[0].now
-
-        // Compute power if missing
-        let instPower = power;
-        if (instPower === undefined) {
-            if (voltage !== undefined && current !== undefined) {
-                instPower = voltage * current
-            } else {
-                throw new Error("Insufficient data to compute power reading")
-            }
-        }
-
-        // Get last reading for this device and lock it to avoid concurrent races
-        const { rows: lastRows } = await client.query(
-        `SELECT id, cumulative_energy, recorded_at
-            FROM power_readings
-            WHERE device_id = $1
-            ORDER BY recorded_at DESC
-            LIMIT 1
-            FOR UPDATE`,
-            
-            [deviceId]
-        );
-
-        let lastCumulative = 0;
-        let lastRecordedAt: Date | null = null;
-        
-        if (lastRows.length > 0) {
-            lastCumulative = Number(lastRows[0].cumulative_energy) || 0;
-            lastRecordedAt = lastRows[0].recorded_at ? new Date(lastRows[0].recorded_at) : null;
-        }
-
-        // cCmpute time delta in hours
-        let deltaHours = 0;
-        const recDate = new Date(recordedAtVal);
-        
-        if (lastRecordedAt) {
-            const ms = recDate.getTime() - lastRecordedAt.getTime();
-            deltaHours = Math.max(0, ms / (1000 * 60 * 60));                    // don't allow negative (out-of-order readings)
+    // backend calculates power if not provided
+    let instPower = power;
+    if (instPower === undefined) {
+        if (voltage !== undefined && current !== undefined) {
+            instPower = voltage * current
         } else {
-            // first reading: we can't compute an energy delta confidently -> assume 0 (or you may choose to approximate).
-            deltaHours = 0;
+            throw new Error("Insufficient data to compute power reading")
         }
+    }   
 
-        const deltaEnergyWh = instPower * deltaHours;               // W * hours = Wh
-        const newCumulative = lastCumulative + deltaEnergyWh;
+    // backend calculates cumulative energy 
+    // insert what backend sends
+    const { rows } = await pool.query(`
+        INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`, 
+        [deviceId, voltage ?? null, current ?? null, instPower, payload.cumulativeEnergy ?? 0, recordedAtVal]
+    )
 
-        const insertRes = await client.query(`
-            INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *`,
-            [deviceId, voltage ?? null, current ?? null, instPower, newCumulative, recDate.toISOString()]
-        );
-
-        await client.query("COMMIT");
-        return insertRes.rows[0];
-    
-    } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-    
-    } finally {
-        client.release();
-    }
+    return rows[0]
 }
 
 
@@ -244,6 +271,76 @@ export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateD
     values.push(id)
     const { rows } = await pool.query(query, values)
     return rows[0] ?? null
+}
+
+
+export async function upsertDeviceEnergyStat(
+    deviceName: string, 
+    periodType: 'daily'|'weekly'|'monthly', 
+    periodStart: string, 
+    totalEnergy: number, 
+    avgPower?: number, 
+    maxPower?: number
+) : Promise<any> {
+
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    const { rows } = await pool.query(
+        `INSERT INTO device_energy_stats (device_id, period_type, period_start, total_energy, avg_power, max_power, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (device_id, period_type, period_start)
+        DO UPDATE SET
+            total_energy = EXCLUDED.total_energy,
+            avg_power = EXCLUDED.avg_power,
+            max_power = EXCLUDED.max_power,
+            updated_at = NOW()
+        RETURNING *`,
+        [deviceId, periodType, periodStart, totalEnergy, avgPower ?? 0, maxPower ?? 0]
+    )
+
+    return rows[0]
+}
+
+
+export async function upsertDeviceImage({ deviceName, imageUrl }: UpdateDeviceMetadata) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    // device_metadata is 1:1 keyed by device_id; we upsert
+    const { rows } = await pool.query(
+        `INSERT INTO device_metadata (device_id, image_url)
+        VALUES ($1, $2)
+        ON CONFLICT (device_id)
+        DO UPDATE SET image_url = EXCLUDED.image_url
+        RETURNING *`,
+        [deviceId, imageUrl]
+    )
+
+    return rows[0]
+}
+
+export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
+    const { deviceName, dailyEnergyLimit, allowedStart, allowedEnd, isEnforced } = payload
+    const deviceId = await getDeviceIdByName(deviceName)
+    
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    const { rows } = await pool.query(
+        `INSERT INTO device_policies (device_id, daily_energy_limit, allowed_start, allowed_end, is_enforced, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (device_id)
+        DO UPDATE SET
+            daily_energy_limit = COALESCE(EXCLUDED.daily_energy_limit, device_policies.daily_energy_limit),
+            allowed_start = COALESCE(EXCLUDED.allowed_start, device_policies.allowed_start),
+            allowed_end = COALESCE(EXCLUDED.allowed_end, device_policies.allowed_end),
+            is_enforced = COALESCE(EXCLUDED.is_enforced, device_policies.is_enforced),
+            updated_at = NOW()
+        RETURNING *`,
+        [deviceId, dailyEnergyLimit ?? null, allowedStart ?? null, allowedEnd ?? null, isEnforced ?? null]
+    )
+
+    return rows[0]
 }
 
 

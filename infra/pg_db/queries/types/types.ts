@@ -56,19 +56,13 @@ export interface NewPowerReading {
     voltage? : number,
     current? : number,
     power? : number,
+    cumulativeEnergy? : number,
     recordedAt?: string
-}
-
-export interface UpdateEnergyParams {
-    deviceName: string,
-    periodType: "daily" | "weekly" | "monthly",
-    periodStart: string,                                // YYYY-MM-DD
-    energyDeltaWh: number                               // energy to add in watt-hours
 }
 
 export interface UpdateDeviceMetadata {
     deviceName: string,
-    imageUrl?: string,
+    imageUrl: string,
 }
 
 export interface UpdateDevicePolicy {
