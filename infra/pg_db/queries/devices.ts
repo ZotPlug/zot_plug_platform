@@ -11,6 +11,10 @@ import {
 //=========================================================
 // READ
 //=========================================================
+
+/**
+ * Fetch all non-deleted devices with basic info (id, name, status).
+ */
 export async function getAllDevices(): Promise<any[]> {
     const { rows } = await pool.query(`
         SELECT id, name, status 
@@ -22,6 +26,9 @@ export async function getAllDevices(): Promise<any[]> {
     return rows
 }
 
+/**
+ * Fetch a specific device by its ID if it’s not deleted.
+ */
 export async function getDeviceById(deviceId: number): Promise<any | null> {
     const { rows } = await pool.query(`
         SELECT id, name, status  
@@ -32,6 +39,9 @@ export async function getDeviceById(deviceId: number): Promise<any | null> {
     return rows[0] ?? null
 }
 
+/**
+ * Get the internal device ID by its unique name.
+ */
 export async function getDeviceIdByName(deviceName: string): Promise<number | null> {
     const { rows } = await pool.query(`
         SELECT id
@@ -42,6 +52,9 @@ export async function getDeviceIdByName(deviceName: string): Promise<number | nu
     return rows[0]?.id ?? null
 }
 
+/**
+ * Fetch all devices owned or mapped to a given user (joins device + user_device_map + roles).
+ */
 export async function getAllDevicesByUserId(userId: number): Promise<any | null> {
     const { rows } = await pool.query(`
         SELECT 
@@ -65,6 +78,9 @@ export async function getAllDevicesByUserId(userId: number): Promise<any | null>
     return rows ?? null
 }
 
+/**
+ * Fetch the latest recorded power reading for a device by name.
+ */
 export async function getLatestReadingByDeviceName(deviceName: string) {
     const deviceId = await getDeviceIdByName(deviceName)
     if (!deviceId) return null
@@ -80,6 +96,9 @@ export async function getLatestReadingByDeviceName(deviceName: string) {
     return rows[0] ?? null
 }
 
+/**
+ * Fetch aggregated energy statistics for a given device and time period.
+ */
 export async function getEnergyStatsByDeviceName(deviceName: string, periodType: 'daily'|'weekly'|'monthly', periodStart: string) {
     const deviceId = await getDeviceIdByName(deviceName)
     if (!deviceId) return null
@@ -103,7 +122,9 @@ export async function getEnergyStatsByDeviceName(deviceName: string, periodType:
     }
 }
 
-
+/**
+ * Fetch the active device policy (usage limits, allowed hours, etc.) for a device.
+ */
 export async function getDevicePolicy(deviceName: string) {
     const deviceId = await getDeviceIdByName(deviceName)
     if (!deviceId) return null
@@ -119,6 +140,9 @@ export async function getDevicePolicy(deviceName: string) {
     return rows[0] ?? null
 }
 
+/**
+ * Fetch all power readings for a given device, ordered newest to oldest.
+ */
 export async function getAllReadingsByDeviceName(deviceName: string) {
     const deviceId = await getDeviceIdByName(deviceName)
     if (!deviceId) return null
@@ -134,6 +158,28 @@ export async function getAllReadingsByDeviceName(deviceName: string) {
     return rows ?? []
 }
 
+/**
+ * Fetch readings within a specified time range (from–to ISO timestamps).
+ */
+export async function getReadingsByDeviceNameInRange(deviceName: string, from: string, to: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings
+        WHERE device_id = $1
+            AND recorded_at BETWEEN $2 AND $3
+        ORDER BY recorded_at DESC`,
+        [deviceId, from, to]
+    )
+
+    return rows ?? []
+}
+
+/**
+ * Fetch all devices currently marked as faulty (too many empty payloads, etc.).
+ */
 export async function getFaultyDevices(): Promise<any[]> {
     try {
         const { rows } = await pool.query(`
@@ -154,6 +200,10 @@ export async function getFaultyDevices(): Promise<any[]> {
 //=========================================================
 // CREATE
 //=========================================================
+
+/**
+ * Create a new device, register it, and map it to a user as the owner (transactional).
+ */
 export async function addDevice({ deviceName, userId }: NewDevice): Promise<any> {
     // we want to insert into devices and user_device_map atomically
     // so we do this in a transaction
@@ -216,7 +266,9 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
     }
 }
 
-
+/**
+ * Add a new power reading (voltage, current, power, etc.) and auto-handle faulty device logic.
+ */
 export async function addPowerReadingByDeviceName(payload: NewPowerReading): Promise<any> {
     const { deviceName, voltage, current, power, cumulativeEnergy, recordedAt } = payload
     const deviceId = await getDeviceIdByName(deviceName)
@@ -278,6 +330,10 @@ export async function addPowerReadingByDeviceName(payload: NewPowerReading): Pro
 //=========================================================
 // UPDATE
 //=========================================================
+
+/**
+ * Update device metadata fields (name, status, last_seen) selectively by ID.
+ */
 export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateDevice): Promise<any | null> {
     const updates: string[] = []
     const values: (string | number)[] = []
@@ -316,7 +372,9 @@ export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateD
     return rows[0] ?? null
 }
 
-
+/**
+ * Insert or update cumulative energy statistics for a given time period.
+ */
 export async function upsertDeviceEnergyStat(
     deviceName: string, 
     periodType: 'daily'|'weekly'|'monthly', 
@@ -345,7 +403,9 @@ export async function upsertDeviceEnergyStat(
     return rows[0]
 }
 
-
+/**
+ * Insert or update the stored image metadata for a device.
+ */
 export async function upsertDeviceImage({ deviceName, imageUrl }: UpdateDeviceMetadata) {
     const deviceId = await getDeviceIdByName(deviceName)
     if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
@@ -363,6 +423,9 @@ export async function upsertDeviceImage({ deviceName, imageUrl }: UpdateDeviceMe
     return rows[0]
 }
 
+/**
+ * Insert or update the device’s policy (energy limits, allowed hours, enforcement flags).
+ */
 export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
     const { deviceName, dailyEnergyLimit, allowedStart, allowedEnd, isEnforced } = payload
     const deviceId = await getDeviceIdByName(deviceName)
@@ -390,6 +453,10 @@ export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
 //=========================================================
 // DELETE
 //=========================================================
+
+/**
+ * Soft-delete a device by marking it as deleted (preserves historical records).
+ */
 export async function deleteDevice(deviceId: number): Promise<{ id: number } | null> {
     const { rows } = await pool.query(`
         UPDATE devices

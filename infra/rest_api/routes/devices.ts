@@ -6,6 +6,7 @@ import {
     getAllDevicesByUserId,
     getDeviceIdByName,
     getAllReadingsByDeviceName,
+    getReadingsByDeviceNameInRange,
     getLatestReadingByDeviceName,
     getEnergyStatsByDeviceName,
     getDevicePolicy,
@@ -100,22 +101,36 @@ router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response)
 router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
-        const { from, to } = req.query
 
-        // Can still filter by date if desired:
-        const allReadings = await getAllReadingsByDeviceName(deviceName)
-        if (!allReadings) return res.status(404).json({ error: 'Device not found' })
+        const readings = await getAllReadingsByDeviceName(deviceName)
+        if (!readings) return res.status(404).json({ error: 'Device not found' })
 
-        let filtered = allReadings
-        if (from)
-            filtered = filtered.filter(r => new Date(r.recorded_at) >= new Date(from as string))
-        if (to)
-            filtered = filtered.filter(r => new Date(r.recorded_at) <= new Date(to as string))
-
-        res.json(filtered)
+        res.json(readings)
 
     } catch (err) {
         console.error('Get readings by device error:', err)
+        res.status(500).json({ error: 'Failed to fetch readings' })
+    }
+})
+
+/**
+ * GET /api/devices/getReadingsByDeviceNameInRange/:deviceName
+ */
+router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { from, to } = req.query
+
+        if (!from || !to)
+            return res.status(400).json({ error: 'Missing from or to query parameters' })
+
+        const readings = await getReadingsByDeviceNameInRange(deviceName, from as string, to as string)
+        if (!readings) return res.status(404).json({ error: 'Device not found' })
+        
+        res.json(readings)
+    
+    } catch (err) {
+        console.error('Get readings by device in range error:', err)
         res.status(500).json({ error: 'Failed to fetch readings' })
     }
 })
@@ -235,6 +250,17 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     }
 })
 
+function ensureLatestReading(latest: any, deviceName: string) {
+    
+    // if no prior reading, seed one with zero values
+    if (!latest) {
+        console.warn(`[INFO] No previous reading found for ${deviceName}. Creating initial record.`)
+        return { voltage: 0, current: 0, power: 0, cumulative_energy: 0, recorded_at: new Date().toISOString() }
+    }
+    
+    return latest
+}
+
 
 /**
  * PUT /api/devices/updateEnergyUsage/:deviceName
@@ -247,8 +273,7 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
         if (!deviceName || cumulativeEnergy === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
 
-        const latest = await getLatestReadingByDeviceName(deviceName)
-        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
 
         const updated = await addPowerReadingByDeviceName({
             deviceName,
@@ -278,8 +303,8 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
         if (!deviceName || power === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or power' })
 
-        const latest = await getLatestReadingByDeviceName(deviceName)
-        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
 
         const updated = await addPowerReadingByDeviceName({
             deviceName,
@@ -309,8 +334,8 @@ router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => 
         if (!deviceName || current === undefined) 
             return res.status(400).json({ error: 'Missing deviceName or current' })
 
-        const latest = await getLatestReadingByDeviceName(deviceName)
-        if (!latest) return res.status(404).json({ error: 'Device or reading not found' })
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
 
         const updated = await addPowerReadingByDeviceName({
             deviceName,
