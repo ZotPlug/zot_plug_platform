@@ -1,4 +1,4 @@
-// rest_api/routes/users.ts
+// infra/rest_api/routes/users.ts
 import { Router, Request, Response } from 'express'
 import {
     getAllUsers,

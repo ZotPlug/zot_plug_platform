@@ -1,11 +1,20 @@
-// all queries related to devices, device_credentials, device_metadata, device_roles, etc.
-// work in progress (Need to implement CRUD)
+// infra/pg_db/queries/devices.ts
 import pool from "../db_config"
-import { NewDevice, UpdateDevice } from "./types/types";
+import { 
+    NewDevice, 
+    NewPowerReading, 
+    UpdateDevice, 
+    UpdateDeviceMetadata,
+    UpdateDevicePolicy
+} from "./types/types";
 
 //=========================================================
 // READ
 //=========================================================
+
+/**
+ * Fetch all non-deleted devices with basic info (id, name, status).
+ */
 export async function getAllDevices(): Promise<any[]> {
     const { rows } = await pool.query(`
         SELECT id, name, status 
@@ -17,6 +26,9 @@ export async function getAllDevices(): Promise<any[]> {
     return rows
 }
 
+/**
+ * Fetch a specific device by its ID if it’s not deleted.
+ */
 export async function getDeviceById(deviceId: number): Promise<any | null> {
     const { rows } = await pool.query(`
         SELECT id, name, status  
@@ -27,6 +39,22 @@ export async function getDeviceById(deviceId: number): Promise<any | null> {
     return rows[0] ?? null
 }
 
+/**
+ * Get the internal device ID by its unique name.
+ */
+export async function getDeviceIdByName(deviceName: string): Promise<number | null> {
+    const { rows } = await pool.query(`
+        SELECT id
+        FROM devices
+        WHERE name = $1 AND is_deleted = FALSE LIMIT 1
+    `, [deviceName.trim()])
+
+    return rows[0]?.id ?? null
+}
+
+/**
+ * Fetch all devices owned or mapped to a given user (joins device + user_device_map + roles).
+ */
 export async function getAllDevicesByUserId(userId: number): Promise<any | null> {
     const { rows } = await pool.query(`
         SELECT 
@@ -50,9 +78,132 @@ export async function getAllDevicesByUserId(userId: number): Promise<any | null>
     return rows ?? null
 }
 
+/**
+ * Fetch the latest recorded power reading for a device by name.
+ */
+export async function getLatestReadingByDeviceName(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings 
+        WHERE device_id = $1 
+        ORDER BY recorded_at DESC LIMIT 1`,
+        [deviceId]
+    )
+    
+    return rows[0] ?? null
+}
+
+/**
+ * Fetch aggregated energy statistics for a given device and time period.
+ */
+export async function getEnergyStatsByDeviceName(deviceName: string, periodType: 'daily'|'weekly'|'monthly', periodStart: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT total_energy, avg_power, max_power, period_type, period_start, updated_at
+        FROM device_energy_stats
+        WHERE device_id = $1 AND period_type = $2 AND period_start = $3
+        LIMIT 1`,
+        [deviceId, periodType, periodStart]
+    )
+
+    // return zeros if no stats found 
+    return rows[0] ?? { 
+        period_type: periodType, 
+        period_start: periodStart,
+        updated_at: null, 
+        total_energy: 0, 
+        avg_power: 0, 
+        max_power: 0 
+    }
+}
+
+/**
+ * Fetch the active device policy (usage limits, allowed hours, etc.) for a device.
+ */
+export async function getDevicePolicy(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT daily_energy_limit, allowed_start, allowed_end, is_enforced, created_at 
+        FROM device_policies 
+        WHERE device_id = $1 
+        LIMIT 1`, 
+        [deviceId]
+    )
+
+    return rows[0] ?? null
+}
+
+/**
+ * Fetch all power readings for a given device, ordered newest to oldest.
+ */
+export async function getAllReadingsByDeviceName(deviceName: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings
+        WHERE device_id = $1
+        ORDER BY recorded_at DESC`,
+        [deviceId]
+    )
+
+    return rows ?? []
+}
+
+/**
+ * Fetch readings within a specified time range (from–to ISO timestamps).
+ */
+export async function getReadingsByDeviceNameInRange(deviceName: string, from: string, to: string) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) return null
+
+    const { rows } = await pool.query(
+        `SELECT voltage, current, power, cumulative_energy, recorded_at
+        FROM power_readings
+        WHERE device_id = $1
+            AND recorded_at BETWEEN $2 AND $3
+        ORDER BY recorded_at DESC`,
+        [deviceId, from, to]
+    )
+
+    return rows ?? []
+}
+
+/**
+ * Fetch all devices currently marked as faulty (too many empty payloads, etc.).
+ */
+export async function getFaultyDevices(): Promise<any[]> {
+    try {
+        const { rows } = await pool.query(`
+            SELECT id, name, empty_payload_count, last_seen, is_faulty
+            FROM devices
+            WHERE is_faulty = TRUE 
+              AND is_deleted = FALSE
+            ORDER BY last_seen DESC NULLS LAST
+        `)
+        return rows
+    } catch (err) {
+        console.error('Error fetching faulty devices:', err)
+        throw err
+    }
+}
+
+
 //=========================================================
 // CREATE
 //=========================================================
+
+/**
+ * Create a new device, register it, and map it to a user as the owner (transactional).
+ */
 export async function addDevice({ deviceName, userId }: NewDevice): Promise<any> {
     // we want to insert into devices and user_device_map atomically
     // so we do this in a transaction
@@ -115,9 +266,74 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
     }
 }
 
+/**
+ * Add a new power reading (voltage, current, power, etc.) and auto-handle faulty device logic.
+ */
+export async function addPowerReadingByDeviceName(payload: NewPowerReading): Promise<any> {
+    const { deviceName, voltage, current, power, cumulativeEnergy, recordedAt } = payload
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) throw new Error(`Device not found ${deviceName}`)
+    
+    const isEmptyPayload = !voltage && !current && !power && !cumulativeEnergy
+    const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : new Date().toISOString()
+
+    // safety net: fallback to zero if payload is empty or missing fields
+    const safeVoltage = voltage ?? 0
+    const safeCurrent = current ?? 0
+    const instPower = voltage !== undefined && current !== undefined ? voltage * current : undefined
+    const safePower = power ?? instPower ?? 0
+    const safeCumulativeEnergy = cumulativeEnergy ?? 0
+
+    // insert into DB - always inserting a valid numeric record
+    const { rows } = await pool.query(`
+        INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`, 
+        [deviceId, safeVoltage, safeCurrent, safePower, safeCumulativeEnergy, recordedAtVal]
+    )
+
+    // handle case where all fields are missing/zero
+    if (isEmptyPayload) {
+        // fetch updated count 
+        const { rows: [{ empty_payload_count }] } = await pool.query(`
+            WITH updated AS (
+                UPDATE devices
+                SET empty_payload_count = COALESCE(empty_payload_count, 0) + 1
+                WHERE id = $1
+                RETURNING empty_payload_count
+            )
+            SELECT empty_payload_count FROM updated
+        `, [deviceId])
+
+        // if count exceeds threshold, mark device as faulty
+        if (empty_payload_count >= 5) {
+            console.warn(`[ALERT] Device ${deviceName} has sent ${empty_payload_count} empty payloads!.`)
+            await pool.query(`
+                UPDATE devices
+                SET is_faulty = TRUE
+                WHERE id = $1
+            `, [deviceId])
+        }
+    } else {
+        // reset empty_payload_count on valid reading
+        await pool.query(`
+            UPDATE devices
+            SET empty_payload_count = 0, is_faulty = FALSE
+            WHERE id = $1
+        `, [deviceId])
+    }
+
+    return rows[0]
+}
+
+
 //=========================================================
 // UPDATE
 //=========================================================
+
+/**
+ * Update device metadata fields (name, status, last_seen) selectively by ID.
+ */
 export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateDevice): Promise<any | null> {
     const updates: string[] = []
     const values: (string | number)[] = []
@@ -156,10 +372,91 @@ export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateD
     return rows[0] ?? null
 }
 
+/**
+ * Insert or update cumulative energy statistics for a given time period.
+ */
+export async function upsertDeviceEnergyStat(
+    deviceName: string, 
+    periodType: 'daily'|'weekly'|'monthly', 
+    periodStart: string, 
+    totalEnergy: number, 
+    avgPower?: number, 
+    maxPower?: number
+) : Promise<any> {
+
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    const { rows } = await pool.query(
+        `INSERT INTO device_energy_stats (device_id, period_type, period_start, total_energy, avg_power, max_power, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (device_id, period_type, period_start)
+        DO UPDATE SET
+            total_energy = EXCLUDED.total_energy,
+            avg_power = EXCLUDED.avg_power,
+            max_power = EXCLUDED.max_power,
+            updated_at = NOW()
+        RETURNING *`,
+        [deviceId, periodType, periodStart, totalEnergy, avgPower ?? 0, maxPower ?? 0]
+    )
+
+    return rows[0]
+}
+
+/**
+ * Insert or update the stored image metadata for a device.
+ */
+export async function upsertDeviceImage({ deviceName, imageUrl }: UpdateDeviceMetadata) {
+    const deviceId = await getDeviceIdByName(deviceName)
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    // device_metadata is 1:1 keyed by device_id; we upsert
+    const { rows } = await pool.query(
+        `INSERT INTO device_metadata (device_id, image_url)
+        VALUES ($1, $2)
+        ON CONFLICT (device_id)
+        DO UPDATE SET image_url = EXCLUDED.image_url
+        RETURNING *`,
+        [deviceId, imageUrl]
+    )
+
+    return rows[0]
+}
+
+/**
+ * Insert or update the device’s policy (energy limits, allowed hours, enforcement flags).
+ */
+export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
+    const { deviceName, dailyEnergyLimit, allowedStart, allowedEnd, isEnforced } = payload
+    const deviceId = await getDeviceIdByName(deviceName)
+    
+    if (!deviceId) throw new Error(`Device not found: ${deviceName}`)
+
+    const { rows } = await pool.query(
+        `INSERT INTO device_policies (device_id, daily_energy_limit, allowed_start, allowed_end, is_enforced, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (device_id)
+        DO UPDATE SET
+            daily_energy_limit = COALESCE(EXCLUDED.daily_energy_limit, device_policies.daily_energy_limit),
+            allowed_start = COALESCE(EXCLUDED.allowed_start, device_policies.allowed_start),
+            allowed_end = COALESCE(EXCLUDED.allowed_end, device_policies.allowed_end),
+            is_enforced = COALESCE(EXCLUDED.is_enforced, device_policies.is_enforced),
+            updated_at = NOW()
+        RETURNING *`,
+        [deviceId, dailyEnergyLimit ?? null, allowedStart ?? null, allowedEnd ?? null, isEnforced ?? null]
+    )
+
+    return rows[0]
+}
+
 
 //=========================================================
 // DELETE
 //=========================================================
+
+/**
+ * Soft-delete a device by marking it as deleted (preserves historical records).
+ */
 export async function deleteDevice(deviceId: number): Promise<{ id: number } | null> {
     const { rows } = await pool.query(`
         UPDATE devices

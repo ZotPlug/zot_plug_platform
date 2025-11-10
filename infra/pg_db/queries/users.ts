@@ -1,4 +1,4 @@
-// pg_db/queries/users.ts
+// infra/pg_db/queries/users.ts
 import pool from '../db_config'
 import argon2 from "argon2"
 import { 

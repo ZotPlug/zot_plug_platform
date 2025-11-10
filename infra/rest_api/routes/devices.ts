@@ -1,15 +1,27 @@
-// rest_api/routes/devices.ts
+// infra/rest_api/routes/devices.ts
 import { Router, Request, Response } from 'express'
 import {
     getAllDevices,
     getDeviceById,
     getAllDevicesByUserId,
+    getDeviceIdByName,
+    getAllReadingsByDeviceName,
+    getReadingsByDeviceNameInRange,
+    getLatestReadingByDeviceName,
+    getEnergyStatsByDeviceName,
+    getDevicePolicy,
+    getFaultyDevices,
     addDevice,
+    addPowerReadingByDeviceName,
     updateDevice,
     deleteDevice,
 } from '../../pg_db/queries/devices'
 
 const router = Router()
+
+//=========================================================
+// READ
+//=========================================================
 
 /**
  * GET /api/devices/getAllDevices - list devices
@@ -64,25 +76,151 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
     }
 })
 
+/**
+ * GET /api/devices/getDeviceIdByName/:deviceName
+ */
+router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const deviceName = req.params.deviceName
+        if (!deviceName) return res.status(400).json({ error: 'Missing device name' })
+
+        const deviceId = await getDeviceIdByName(deviceName)
+        if (!deviceId) return res.status(404).json({ error: 'Device not found' })
+
+        res.json({ deviceName, id: deviceId })
+
+    } catch (err) {
+        console.error('Get device ID by name error:', err)
+        res.status(500).json({ error: 'Failed to fetch device ID' })
+    }
+})
+
+/**
+ * GET /api/devices/getReadingsByDeviceName/:deviceName
+ */
+router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+
+        const readings = await getAllReadingsByDeviceName(deviceName)
+        if (!readings) return res.status(404).json({ error: 'Device not found' })
+
+        res.json(readings)
+
+    } catch (err) {
+        console.error('Get readings by device error:', err)
+        res.status(500).json({ error: 'Failed to fetch readings' })
+    }
+})
+
+/**
+ * GET /api/devices/getReadingsByDeviceNameInRange/:deviceName
+ */
+router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { from, to } = req.query
+
+        if (!from || !to)
+            return res.status(400).json({ error: 'Missing from or to query parameters' })
+
+        const readings = await getReadingsByDeviceNameInRange(deviceName, from as string, to as string)
+        if (!readings) return res.status(404).json({ error: 'Device not found' })
+        
+        res.json(readings)
+    
+    } catch (err) {
+        console.error('Get readings by device in range error:', err)
+        res.status(500).json({ error: 'Failed to fetch readings' })
+    }
+})
+
+/**
+ * GET /api/devices/getLatestReading/:deviceName
+ */
+router.get('/getLatestReading/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const latest = await getLatestReadingByDeviceName(deviceName)
+        if (!latest) return res.status(404).json({ error: 'No readings found' })
+        res.json(latest)
+    } catch (err) {
+        console.error('Get latest reading error:', err)
+        res.status(500).json({ error: 'Failed to fetch latest reading' })
+    }
+})
+
+router.get('/getEnergyStats/:deviceName/:periodType/:periodStart', async (req: Request, res: Response) => {
+    try {
+        const { deviceName, periodType, periodStart } = req.params
+        const stats = await getEnergyStatsByDeviceName(deviceName, periodType as any, periodStart)
+        if (!stats) return res.status(404).json({ error: 'Device or stats not found' })
+        res.json(stats)
+    } catch (err) {
+        console.error('Get energy stats error:', err)
+        res.status(500).json({ error: 'Failed to fetch energy stats' })
+    }
+})
+
+router.get('/getDevicePolicy/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const policy = await getDevicePolicy(deviceName)
+        if (!policy) return res.status(404).json({ error: 'No policy found' })
+        res.json(policy)
+    } catch (err) {
+        console.error('Get device policy error:', err)
+        res.status(500).json({ error: 'Failed to fetch device policy' })
+    }
+})
+
+
+/**
+ * GET /api/devices/getFaultyDevices - list faulty devices
+ */
+router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
+    try {
+        const faultyDevices = await getFaultyDevices()
+        res.json(faultyDevices)
+    } catch (err) {
+        console.error('Get faulty devices error:', err)
+        res.status(500).json({ error: 'Failed to fetch faulty devices' })
+    }
+})
+
+
+
+
+//=========================================================
+// CREATE
+//=========================================================
 
 /**
  * POST /api/devices/addDeviceMap - create device and map owner
  */
 router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
-        const { name, userId } = req.body
-        if (!name || !userId) return res.status(400).json({ error: 'Missing name or userId' })
+        const { deviceName, userId } = req.body
+        if (!deviceName || !userId) 
+            return res.status(400).json({ error: 'Missing name or userId' })
 
-        const device = await addDevice({ name, userId })
+        const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505') return res.status(409).json({ error: 'Device name already exists' })
+        if (err?.code === '23505') 
+            return res.status(409).json({ error: 'Device name already exists' })
+        
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
     }
 })
+
+
+//=========================================================
+// UPDATE
+//=========================================================
 
 /**
  * PUT /api/devices/updateDevice/:id - partial update
@@ -111,6 +249,116 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to update device' })
     }
 })
+
+function ensureLatestReading(latest: any, deviceName: string) {
+    
+    // if no prior reading, seed one with zero values
+    if (!latest) {
+        console.warn(`[INFO] No previous reading found for ${deviceName}. Creating initial record.`)
+        return { voltage: 0, current: 0, power: 0, cumulative_energy: 0, recorded_at: new Date().toISOString() }
+    }
+    
+    return latest
+}
+
+
+/**
+ * PUT /api/devices/updateEnergyUsage/:deviceName
+ */
+router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { cumulativeEnergy } = req.body
+
+        if (!deviceName || cumulativeEnergy === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
+
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current: latest.current,
+            power: latest.power,
+            cumulativeEnergy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update energy usage error:', err)
+        res.status(500).json({ error: 'Failed to update energy usage' })
+    }
+})
+
+/**
+ * PUT /api/devices/updatePower/:deviceName
+ */
+router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { power } = req.body
+
+        if (!deviceName || power === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or power' })
+
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current: latest.current,
+            power,
+            cumulativeEnergy: latest.cumulative_energy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update power error:', err)
+        res.status(500).json({ error: 'Failed to update power' })
+    }
+})
+
+/**
+ * PUT /api/devices/updateCurrent/:deviceName
+ */
+router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { current } = req.body
+        
+        if (!deviceName || current === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName or current' })
+
+        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage: latest.voltage,
+            current,
+            power: latest.power,
+            cumulativeEnergy: latest.cumulative_energy,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+
+    } catch (err) {
+        console.error('Update current error:', err)
+        res.status(500).json({ error: 'Failed to update current' })
+    }
+})
+
+
+
+//=========================================================
+// DELETE
+//=========================================================
 
 /**
  * DELETE /api/devices/deleteDevice/:id - soft delete
