@@ -11,7 +11,7 @@
 *         - email
 *       properties:
 *         id:
-*           type: string
+*           type: integer
 *           description: The auto-generated id of the user
 *           readOnly: true
 *         firstname:

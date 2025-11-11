@@ -1,3 +1,181 @@
+/**
+* @swagger
+* components:
+*   schemas:
+*     Device:
+*       type: object
+*       required:
+*         - name
+*       properties:
+*         id:
+*           type: integer
+*           description: The auto-generated id of the device
+*           readOnly: true
+*         name:
+*           type: string
+*           description: The name of the device
+*         status:
+*           type: string
+*           description: The current state of the device 
+*           enum: [online, offline, error]
+*           example: offline
+*         last_seen:
+*           type: string
+*           format: date
+*           description: The last ping of the device 
+*         empty_payload_count:
+*           type: integer
+*           description: Keeps track of the number of empty/malformed payloads received
+*         is_faulty:
+*           type: boolean
+*           description: A flag used to mark devices as faulty.
+*         is_deleted:
+*           type: boolean
+*           description: A flag used to mark devices as soft-deleted.
+*         deleted_at:
+*           type: string
+*           format: date
+*           description: Keeps track of when the device was soft-deleted.
+*       example:
+*         id: 12
+*         name: Steve's Living Room
+*         status: online
+*         last_seen: 2020-03-10T04:05:06.157Z
+*         empty_payload_count: 25
+*         is_faulty: false
+*         is_deleted: false
+*     DeviceReading:
+*       type: object
+*       required:
+*         - device_id
+*         - voltage
+*         - current
+*       properties:
+*         id:
+*           type: integer
+*           description: The auto-generated id of the power reading
+*           readOnly: true
+*         device_id:
+*           type: integer
+*           description: The id of the device it's associated with.
+*           readOnly: true
+*         voltage:
+*           type: number
+*           description: The measured voltage reading from the device in volts.
+*         current:
+*           type: number
+*           description: The current reading from the device, measured in amps.
+*         power:
+*           type: number
+*           description: Instantaneous power measured in watts.
+*         cumulative_energy:
+*           type: number
+*           description: Cumulative energy measured in kWh.
+*         recorded_at:
+*           type: string
+*           format: date
+*           description: When the reading was taken.
+*       example:
+*         id: 212
+*         device_id: 34
+*         voltage: 118.6
+*         current: 3.21
+*         power: 380.7
+*         cumulative_energy: 12
+*         recorded_at: 2020-03-10T04:05:06.157Z
+*     DeviceEnergyStat:
+*       type: object
+*       required:
+*         - device_id
+*         - period_type
+*         - period_start
+*       properties:
+*         id:
+*           type: integer
+*           description: The auto-generated id of this aggregated energy usage per device over a specified time period.
+*           readOnly: true
+*         device_id:
+*           type: integer
+*           description: The id of the device it's associated with.
+*           readOnly: true
+*         period_type:
+*           type: string
+*           enum: [daily, weekly, monthly]
+*           description: The start of the period (e.g. '2025-11.08')
+*           example: daily
+*         total_energy:
+*           type: number
+*           description: Total Wh used over the specified period.
+*         avg_power:
+*           type: number
+*           description: The average power used over the specified period.
+*         max_power:
+*           type: number
+*           description: The peak power used over the specified period.
+*         updated_at:
+*           type: string
+*           format: date
+*           description: Last time this was recalculated.
+*       example:
+*         id: 34
+*         device_id: 12
+*         period_type: daily
+*         total_energy: 200
+*         avg_power: 34
+*         max_power: 54
+*         updated_at: 2025-11-08
+*     DevicePolicy:
+*       type: object
+*       required:
+*         - device_id
+*         - daily_energy_limit
+*       properties:
+*         id:
+*           type: integer
+*           description: The auto-generated id of this device's policy used for custom usage restrictions or automation rules.
+*           readOnly: true
+*         device_id:
+*           type: integer
+*           description: The id of the device it's associated with.
+*           readOnly: true
+*         daily_energy_limit:
+*           type: number
+*           description: Wh limit per day.
+*         allowed_start:
+*           type: string
+*           format: date
+*           description: Earliest allowed operation time
+*         allowed_end:
+*           type: string
+*           format: date
+*           description: Latest allowed operation time
+*         is_enforced:
+*           type: boolean
+*           description: Whether the policy is active.
+*         last_violation:
+*           type: string
+*           format: date
+*           description: The last time the limit was exceeded
+*         created_at:
+*           type: string
+*           format: date
+*           description: When this policy was first created
+*         updated_at:
+*           type: string
+*           format: date
+*           description: When this policy was last updated
+*       example:
+*         id: 12
+*         device_id: 12
+*         daily_energy_limit: 1200
+*         allowed_start: 04:05
+*         allowed_end: 13:05
+*         is_enforced: false
+*         last_violation: 2025-11-06
+*         created_at: 2025-11-04
+*         updated_at: 2025-11-08
+*/
+
 // infra/rest_api/routes/devices.ts
 import { Router, Request, Response } from 'express'
 import {
@@ -26,6 +204,28 @@ const router = Router()
 /**
  * GET /api/devices/getAllDevices - list devices
  */
+
+/**
+* @swagger
+* tags:
+*   name: Devices
+*   description: The device management API.
+* /devices/getAllDevices:
+*   get:
+*     summary: Get all devices that haven't been deleted
+*     tags: [Devices]
+*     responses:
+*       200:
+*         description: The returned devices sorted by ID.
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/Device'
+*       500:
+*         description: Failed to fetch devices.
+*/
 router.get('/getAllDevices', async (req: Request, res: Response) => {
     try {
         const devices = await getAllDevices()
@@ -40,6 +240,34 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
 /**
  * GET /api/devices/getDeviceById/:id
  */
+
+/**
+* @swagger
+* /devices/getDeviceById/{id}:
+*   get:
+*     summary: Get a device by a specific id.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The ID of the device to retrieve
+*     responses:
+*       200:
+*         description: The device was found.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Device'
+*       400:
+*         description: Invalid device id.
+*       404:
+*         description: Device not found.
+*       500:
+*         description: Failed to fetch device.
+*/
 router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -59,6 +287,36 @@ router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
 /**
  * GET /api/devices/getAllDevicesByUserId/:id - get all devices by user ID
  */
+
+/**
+* @swagger
+* /devices/getAllDevicesByUserId/{id}:
+*   get:
+*     summary: Get ll devices associated with a user ID.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The ID of the user whose devices we are looking for.
+*     responses:
+*       200:
+*         description: The device was found.
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/Device'
+*       400:
+*         description: Invalid user id.
+*       404:
+*         description: No devices found for this user.
+*       500:
+*         description: Failed to fetch devices.
+*/
 router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -79,6 +337,39 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
 /**
  * GET /api/devices/getDeviceIdByName/:deviceName
  */
+
+/**
+* @swagger
+* /devices/getDeviceIdByName/{deviceName}:
+*   get:
+*     summary: Get a device by name.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to retrieve
+*     responses:
+*       200:
+*         description: The device was found.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 deviceName:
+*                   type: string
+*                 id:
+*                   type: integer
+*       400:
+*         description: Missing device name.
+*       404:
+*         description: Device not found.
+*       500:
+*         description: Failed to fetch device ID.
+*/
 router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response) => {
     try {
         const deviceName = req.params.deviceName
@@ -98,6 +389,34 @@ router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response)
 /**
  * GET /api/devices/getReadingsByDeviceName/:deviceName
  */
+
+/**
+* @swagger
+* /devices/getReadingsByDeviceName/{deviceName}:
+*   get:
+*     summary: Get the readings associated with a device by its device name.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to retrieve
+*     responses:
+*       200:
+*         description: The readings associated with the device name.
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/DeviceReading'
+*       404:
+*         description: Device not found.
+*       500:
+*         description: Failed to fetch readings.
+*/
 router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -116,6 +435,48 @@ router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Res
 /**
  * GET /api/devices/getReadingsByDeviceNameInRange/:deviceName
  */
+
+/**
+* @swagger
+* /devices/getReadingsByDeviceNameInRange/{deviceName}:
+*   get:
+*     summary: Get the readings associated with a device by its device name within a specified time range (from-to ISO timestamps).
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to lookup data for.
+*       - in: query
+*         name: from
+*         schema:
+*           type: string
+*         required: true
+*         description: The starting time (ISO timestamps)
+*       - in: query
+*         name: to
+*         schema:
+*           type: string
+*         required: true
+*         description: The ending time (ISO timestamps)
+*     responses:
+*       200:
+*         description: The readings associated with the device name.
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/DeviceReading'
+*       400:
+*         description: Missing from or to query parameters.
+*       404:
+*         description: Device not found.
+*       500:
+*         description: Failed to fetch readings by device in range.
+*/
 router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -138,6 +499,32 @@ router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, r
 /**
  * GET /api/devices/getLatestReading/:deviceName
  */
+
+/**
+* @swagger
+* /devices/getLatestReading/{deviceName}:
+*   get:
+*     summary: Get the latest reading associated with a device by its device name.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to retrieve
+*     responses:
+*       200:
+*         description: The readings associated with the device name.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DeviceReading'
+*       404:
+*         description: No readings found.
+*       500:
+*         description: Failed to fetch device reading.
+*/
 router.get('/getLatestReading/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -150,6 +537,43 @@ router.get('/getLatestReading/:deviceName', async (req: Request, res: Response) 
     }
 })
 
+/**
+* @swagger
+* /devices/getEnergyStats/{deviceName}/{periodType}/{periodStart}:
+*   get:
+*     summary: Get the aggregate energy stats associated with a specific device name for a particular duration based on a given start time.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to retrieve
+*       - in: path
+*         name: periodType
+*         schema:
+*           type: string
+*         required: true
+*         description: The type of period. (e.g. daily, weekly, monthly)
+*       - in: path
+*         name: periodStart
+*         schema:
+*           type: string
+*         required: true
+*         description: The starting time for this period
+*     responses:
+*       200:
+*         description: The aggregated energy usage associated with the device name over a defined time period.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/EnergyDeviceStat'
+*       404:
+*         description: Device or stats not found.
+*       500:
+*         description: Failed to fetch energy stats.
+*/
 router.get('/getEnergyStats/:deviceName/:periodType/:periodStart', async (req: Request, res: Response) => {
     try {
         const { deviceName, periodType, periodStart } = req.params
@@ -162,6 +586,31 @@ router.get('/getEnergyStats/:deviceName/:periodType/:periodStart', async (req: R
     }
 })
 
+/**
+* @swagger
+* /devices/getDevicePolicy/{deviceName}:
+*   get:
+*     summary: Get the device policy associated with this device by its device name.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to retrieve
+*     responses:
+*       200:
+*         description: The policy associated with the device name.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DevicePolicy'
+*       404:
+*         description: No policy found.
+*       500:
+*         description: Failed to fetch device policy.
+*/
 router.get('/getDevicePolicy/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -178,6 +627,25 @@ router.get('/getDevicePolicy/:deviceName', async (req: Request, res: Response) =
 /**
  * GET /api/devices/getFaultyDevices - list faulty devices
  */
+
+/**
+* @swagger
+* /devices/getAllDevices:
+*   get:
+*     summary: Get all faulty devices that haven't been deleted
+*     tags: [Devices]
+*     responses:
+*       200:
+*         description: The returned devices sorted by last seen.
+*         content:
+*           application/json:
+*             schema:
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/Device'
+*       500:
+*         description: Failed to fetch devices.
+*/
 router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
     try {
         const faultyDevices = await getFaultyDevices()
@@ -198,6 +666,39 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 /**
  * POST /api/devices/addDeviceMap - create device and map owner
  */
+
+/**
+* @swagger
+* /devices/addDeviceMap:
+*   post:
+*     summary: Create device and map owner
+*     tags: [Devices]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 deviceName:
+*                   type: string
+*                 userId:
+*                   type: integer
+*     responses:
+*       201:
+*         description: The user was created.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Device'
+*       400:
+*         description: Missing name or user id.
+*       409:
+*         description: Device name already exists.
+*       500:
+*         description: Failed to create device.
+*
+*/
 router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
         const { deviceName, userId } = req.body
@@ -225,6 +726,48 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 /**
  * PUT /api/devices/updateDevice/:id - partial update
  */
+ 
+/**
+* @swagger
+* /devices/updateDevice/{id}:
+*   put:
+*     summary: Update info related to the device.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The id of the device to update.
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 name:
+*                   type: string
+*                 status:
+*                   type: string
+*                 last_seen:
+*                   type: string
+*                   format: date
+*     responses:
+*       200:
+*         description: The updated device data.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/Device'
+*       400:
+*         description: Invalid ID.
+*       404:
+*         description: Device not found or no changes applied.
+*       500:
+*         description: Failed to update device.
+*/
 router.put('/updateDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -265,6 +808,41 @@ function ensureLatestReading(latest: any, deviceName: string) {
 /**
  * PUT /api/devices/updateEnergyUsage/:deviceName
  */
+
+/**
+* @swagger
+* /devices/updateEnergyUsage/{deviceName}:
+*   put:
+*     summary: Update the energy usage statistics associated with this device.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to update.
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 cumulativeEnergy:
+*                   type: number
+*     responses:
+*       200:
+*         description: The new device reading entry.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DeviceReading'
+*       400:
+*         description: Missing device name or cumulative energy.
+*       500:
+*         description: Failed to update energy usage.
+*/
 router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -295,6 +873,41 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
 /**
  * PUT /api/devices/updatePower/:deviceName
  */
+
+/**
+* @swagger
+* /devices/updatePower/{deviceName}:
+*   put:
+*     summary: Update the power readings associated with this device.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to update.
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 power:
+*                   type: number
+*     responses:
+*       200:
+*         description: The new device reading entry.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DeviceReading'
+*       400:
+*         description: Missing device name or power.
+*       500:
+*         description: Failed to update power.
+*/
 router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -326,6 +939,41 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
 /**
  * PUT /api/devices/updateCurrent/:deviceName
  */
+ 
+/**
+* @swagger
+* /devices/updateCurrent/{deviceName}:
+*   put:
+*     summary: Update the current readings associated with this device.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to update.
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 current:
+*                   type: number
+*     responses:
+*       200:
+*         description: The new device reading entry.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DeviceReading'
+*       400:
+*         description: Missing device name or current.
+*       500:
+*         description: Failed to update current.
+*/
 router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
@@ -363,6 +1011,37 @@ router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => 
 /**
  * DELETE /api/devices/deleteDevice/:id - soft delete
  */
+
+/**
+* @swagger
+* /devices/deleteDevice/{id}:
+*   delete:
+*     summary: Deletes a given device from the database.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The id of the device to delete.
+*     responses:
+*       200:
+*         description: The id of the soft-deleted device.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 id:
+*                   type: integer
+*       400:
+*         description: Invalid id.
+*       404:
+*         description: Device not found.
+*       500:
+*         description: Failed to delete the device.
+*/
 router.delete('/deleteDevice/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
