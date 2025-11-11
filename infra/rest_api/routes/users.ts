@@ -13,6 +13,7 @@
 *         id:
 *           type: string
 *           description: The auto-generated id of the user
+*           readOnly: true
 *         firstname:
 *           type: string
 *           description: The user's first name
@@ -38,6 +39,9 @@
 *           type: string
 *           format: date
 *           description: Timestamp when user was soft-deleted
+*         password:
+*           type: string
+*           description: Only used when adding a new user. Not stored in the database directly.
 *       example:
 *         id: 12
 *         firstname: Bob
@@ -47,6 +51,21 @@
 *         email_verified: true
 *         is_deleted: true
 *         deleted_at: 2020-03-10T04:05:06.157Z
+*     Credentials:
+*       type: object
+*       required:
+*         - email
+*         - password
+*       properties:
+*         username:
+*           type: string
+*           description: The user's email.
+*         password:
+*           type: string
+*           description: The user's password.
+*       example:
+*         username: bobjonesman
+*         password: needToSwitchToSendingAHash            
 */
 
 // infra/rest_api/routes/users.ts
@@ -80,7 +99,9 @@ const router = Router()
 *         content:
 *           application/json:
 *             schema:
-*               $ref: '#/components/schemas/User'
+*               type: array
+*               items:
+*                 $ref: '#/components/schemas/User'
 *       500:
 *         description: Failed to fetch users.
 *
@@ -102,13 +123,20 @@ router.get('/getAllUsers', async (req: Request, res: Response) => {
 
 /**
 * @swagger
-* /users/getUserById/:id:
+* /users/getUserById/{id}:
 *   get:
 *     summary: Get a user by a specific id.
 *     tags: [Users]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The ID of the user to retrieve
 *     responses:
 *       200:
-*         description: The specific user.
+*         description: The user was found.
 *         content:
 *           application/json:
 *             schema:
@@ -145,7 +173,7 @@ router.get('/getUserById/:id', async (req: Request, res: Response) => {
 * @swagger
 * /users/addUser:
 *   post:
-*     summary: Add a user.
+*     summary: Add a user (signup).
 *     tags: [Users]
 *     requestBody:
 *       required: true
@@ -201,6 +229,46 @@ router.post('/addUser', async (req: Request, res: Response) => {
 /**
  * PUT /api/users/updateUser/:id - update allowed fields
  */
+
+/**
+* @swagger
+* /users/updateUser/{id}:
+*   put:
+*     summary: Update allowed user fields
+*     tags: [Users]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The ID of the user to update
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             $ref: '#/components/schemas/User'
+*     responses:
+*       200:
+*         description: The user was updated.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 userId:
+*                   type: integer
+*                 token:
+*                   type: string
+*       400:
+*         description: Invalid user id or no fields that can be updated were found.
+*       404:
+*         description: User not found or no change applied.
+*       500:
+*         description: Failed to update user.
+*
+*/
 router.put('/updateUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -230,6 +298,38 @@ router.put('/updateUser/:id', async (req: Request, res: Response) => {
 /**
  * DELETE /api/users/deleteUser/:id - soft delete
  */
+
+/**
+* @swagger
+* /users/deleteUser/{id}:
+*   delete:
+*     summary: Soft deletes this user
+*     tags: [Users]
+*     parameters:
+*       - in: path
+*         name: id
+*         schema:
+*           type: integer
+*         required: true
+*         description: The ID of the user to delete
+*     responses:
+*       200:
+*         description: The user was deleted.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 id:
+*                   type: integer
+*       400:
+*         description: Invalid user id.
+*       404:
+*         description: User not found.
+*       500:
+*         description: Failed to delete user.
+*
+*/
 router.delete('/deleteUser/:id', async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id)
@@ -251,6 +351,37 @@ router.delete('/deleteUser/:id', async (req: Request, res: Response) => {
 /**
  * POST /api/users/checkUserCreds - login
  */
+
+/**
+* @swagger
+* /users/checkUserCreds:
+*   post:
+*     summary: Tries to login
+*     tags: [Users]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             $ref: '#/components/schemas/Credentials'
+*     responses:
+*       200:
+*         description: The user was created.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 valid:
+*                   type: boolean
+*                 userId:
+*                   type: integer
+*       400:
+*         description: Missing email/password.
+*       500:
+*         description: Internal credential checking server error.
+*
+*/
 router.post('/checkUserCreds', async (req: Request, res: Response) => {
 	try {
 		const { email, password } = await req.body
@@ -264,6 +395,10 @@ router.post('/checkUserCreds', async (req: Request, res: Response) => {
             const token = craft_and_set_jwt(req, res)
 			return res.json({ "valid": true, userId: result.userId })
 		} else {
+            // TODO: Switch this to error code 401.
+            // Not changing at the moment because I don't don't have time to 
+            // change the appropriate frontend logic right now.
+            // (We don't really need custom valid parsing logic)
 			return res.json({ "valid": false })
 		}
 
@@ -276,6 +411,47 @@ router.post('/checkUserCreds', async (req: Request, res: Response) => {
 /**
  * POST /api/users/createSession
  */
+
+/**
+* @swagger
+* /users/createSession:
+*   post:
+*     summary: Tries to create a user session for login purposes
+*     tags: [Users]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             type: object
+*             properties:
+*               userId:
+*                 type: integer
+*               ip:
+*                 type: string
+*               userAgent:
+*                 type: string
+*     responses:
+*       200:
+*         description: The session was created.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 sessionId:
+*                   type: string
+*                 minutesAlive:
+*                   type: integer
+*               example:
+*                 userId: 4
+*                 ip: "127.0.0.1"
+*                 userAgent: "Windows"
+*       400:
+*         description: Missing user ID.
+*       500:
+*         description: Failed to create user session.
+*/
 router.post('/createSession', async (req: Request, res: Response) => {
     try {
         const { userId, ip, userAgent } = req.body
@@ -294,6 +470,39 @@ router.post('/createSession', async (req: Request, res: Response) => {
 /**
  * POST /api/users/getSession
  */
+
+/**
+* @swagger
+* /users/getSession:
+*   post:
+*     summary: Tries to get an existing a user session for login purposes
+*     tags: [Users]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             type: object
+*             properties:
+*               sessionId:
+*                 type: string
+*     responses:
+*       200:
+*         description: The session was created.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 sessionId:
+*                   type: string
+*                 userId:
+*                   type: integer
+*       400:
+*         description: Missing session ID.
+*       500:
+*         description: Failed to get session from database and failed to check credentials.
+*/
 router.post('/getSession', async (req: Request, res: Response) => {
 	try {
 		const { sessionId } = req.body
@@ -312,6 +521,34 @@ router.post('/getSession', async (req: Request, res: Response) => {
 /**
  * POST /api/users/checkUserJwt - verify token in Authorization header
  */
+
+/**
+* @swagger
+* /users/checkUserJwt:
+*   post:
+*     summary: Tries to verify the token in the authorization header
+*     tags: [Users]
+*     parameters:
+*       - name: token
+*         in: header
+*         description: The JWT token used for authorization purposes.
+*         required: true
+*         type: string
+*     responses:
+*       200:
+*         description: The token was verified
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 ok:
+*                   type: boolean
+*       401:
+*         description: Not authorized. NO token or token is invalid.
+*       500:
+*         description: Failed to get jwt credentials.
+*/
 router.post('/checkUserJwt', async (req: Request, res: Response) => {
 	try {
 		const authHeader = req.headers["authorization"]

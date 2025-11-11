@@ -41,7 +41,7 @@ const swaggerOptions = {
 }
 
 const swaggerJsdocSpecs = swaggerJsdoc(swaggerOptions)
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerJsdocSpecs, { explorer: true }))
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerJsdocSpecs, { explorer: false }))
 
 // mount resource routers
 app.use('/api/users', usersRouter)
