@@ -1,3 +1,54 @@
+/**
+* @swagger
+* components:
+*   schemas:
+*     User:
+*       type: object
+*       required:
+*         - firstname
+*         - lastname
+*         - username
+*         - email
+*       properties:
+*         id:
+*           type: string
+*           description: The auto-generated id of the user
+*         firstname:
+*           type: string
+*           description: The user's first name
+*         lastname:
+*           type: string
+*           description: The user's last name
+*         username:
+*           type: string
+*           description: Login/display name (unique)
+*         email:
+*           type: string
+*           description: Unique email (for login/auth or notifications)
+*         email_verified:
+*           type: boolean
+*           description: Email verification (auth security)
+*         phone:
+*           type: string
+*           description: Optional phone number
+*         is_deleted:
+*           type: boolean
+*           description: Soft-delete flag (true if account is removed)
+*         deleted_at:
+*           type: string
+*           format: date
+*           description: Timestamp when user was soft-deleted
+*       example:
+*         id: 12
+*         firstname: Bob
+*         lastname: Jones
+*         username: bobjonesman
+*         email: bobjones@gmail.com
+*         email_verified: true
+*         is_deleted: true
+*         deleted_at: 2020-03-10T04:05:06.157Z
+*/
+
 // infra/rest_api/routes/users.ts
 import { Router, Request, Response } from 'express'
 import {
@@ -15,8 +66,25 @@ import { craft_and_set_jwt, verifyToken } from '../jwt_conf'
 const router = Router()
 
 /**
- * GET /api/users/getAllUsers - list users
- */
+* @swagger
+* tags:
+*   name: Users
+*   description: The user management API.
+* /users/getAllUsers:
+*   get:
+*     summary: Get all users whose accounts haven't been deleted
+*     tags: [Users]
+*     responses:
+*       200:
+*         description: The returned users sorted by ID.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/User'
+*       500:
+*         description: Failed to fetch users.
+*
+*/
 router.get('/getAllUsers', async (req: Request, res: Response) => {
     try {
         const users = await getAllUsers()
@@ -31,6 +99,27 @@ router.get('/getAllUsers', async (req: Request, res: Response) => {
 /**
  * GET /api/users/getUserById/:id - get user_id
  */
+
+/**
+* @swagger
+* /users/getUserById/:id:
+*   get:
+*     summary: Get a user by a specific id.
+*     tags: [Users]
+*     responses:
+*       200:
+*         description: The specific user.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/User'
+*       400:
+*         description: Invalid user id.
+*       404:
+*         description: User not found.
+*       500:
+*         description: Failed to fetch user.
+*/
 router.get('/getUserById/:id', async (req: Request, res: Response) => {
 	try {
         const id = Number(req.params.id)
@@ -51,6 +140,37 @@ router.get('/getUserById/:id', async (req: Request, res: Response) => {
  * POST /api/users/addUser - create user (signup)
  * returns userId and token 
  */
+
+/**
+* @swagger
+* /users/addUser:
+*   post:
+*     summary: Add a user.
+*     tags: [Users]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             $ref: '#/components/schemas/User'
+*     responses:
+*       201:
+*         description: The user was created.
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 userId:
+*                   type: integer
+*                 token:
+*                   type: string
+*       400:
+*         description: Missing required fields or duplicate value.
+*       500:
+*         description: Failed to add user.
+*
+*/
 router.post('/addUser', async (req: Request, res: Response) => {
 	try {
 		const { firstname, lastname, username, email, password } = req.body
