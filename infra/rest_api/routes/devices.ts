@@ -942,9 +942,9 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
  
 /**
 * @swagger
-* /devices/updateCurrent/{deviceName}:
+* /devices/updateReadings/{deviceName}:
 *   put:
-*     summary: Update the current readings associated with this device.
+*     summary: Update the current and voltage readings associated with this device.
 *     tags: [Devices]
 *     parameters:
 *       - in: path
@@ -962,6 +962,8 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
 *               properties:
 *                 current:
 *                   type: number
+*                 voltage:
+*                   type: number
 *     responses:
 *       200:
 *         description: The new device reading entry.
@@ -974,20 +976,19 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
 *       500:
 *         description: Failed to update current.
 */
-router.put('/updateCurrent/:deviceName', async (req: Request, res: Response) => {
+router.put('/updateReadings/:deviceName', async (req: Request, res: Response) => {
     try {
         const { deviceName } = req.params
-        const { current } = req.body
+        const { current, voltage } = req.body
         
-        if (!deviceName || current === undefined) 
-            return res.status(400).json({ error: 'Missing deviceName or current' })
+        if (!deviceName || current === undefined || voltage === undefined) 
+            return res.status(400).json({ error: 'Missing deviceName, current, or voltage' })
 
         let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
 
-
         const updated = await addPowerReadingByDeviceName({
             deviceName,
-            voltage: latest.voltage,
+            voltage,
             current,
             power: latest.power,
             cumulativeEnergy: latest.cumulative_energy,
