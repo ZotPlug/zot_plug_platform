@@ -16,7 +16,9 @@
     "jsonwebtoken": "^9.0.2",
     "mqtt": "^5.14.1",
     "mqtt-pattern": "^2.1.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
