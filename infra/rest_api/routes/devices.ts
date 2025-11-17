@@ -310,9 +310,9 @@ router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, r
 
         const readings = await getReadingsByDeviceNameInRange(deviceName, from as string, to as string)
         if (!readings) return res.status(404).json({ error: 'Device not found' })
-        
+
         res.json(readings)
-    
+
     } catch (err) {
         console.error('Get readings by device in range error:', err)
         res.status(500).json({ error: 'Failed to fetch readings' })
@@ -525,16 +525,16 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 router.post('/addDeviceMap', async (req: Request, res: Response) => {
     try {
         const { deviceName, userId } = req.body
-        if (!deviceName || !userId) 
+        if (!deviceName || !userId)
             return res.status(400).json({ error: 'Missing name or userId' })
 
         const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505') 
+        if (err?.code === '23505')
             return res.status(409).json({ error: 'Device name already exists' })
-        
+
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
@@ -549,7 +549,7 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 /**
  * PUT /api/devices/updateDevice/:id - partial update
  */
- 
+
 /**
 * @swagger
 * /devices/updateDevice/{id}:
@@ -617,13 +617,13 @@ router.put('/updateDevice/:id', async (req: Request, res: Response) => {
 })
 
 function ensureLatestReading(latest: any, deviceName: string) {
-    
+
     // if no prior reading, seed one with zero values
     if (!latest) {
         console.warn(`[INFO] No previous reading found for ${deviceName}. Creating initial record.`)
         return { voltage: 0, current: 0, power: 0, cumulative_energy: 0, recorded_at: new Date().toISOString() }
     }
-    
+
     return latest
 }
 
@@ -671,7 +671,7 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
         const { deviceName } = req.params
         const { cumulativeEnergy } = req.body
 
-        if (!deviceName || cumulativeEnergy === undefined) 
+        if (!deviceName || cumulativeEnergy === undefined)
             return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
 
         let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
@@ -736,7 +736,7 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
         const { deviceName } = req.params
         const { power } = req.body
 
-        if (!deviceName || power === undefined) 
+        if (!deviceName || power === undefined)
             return res.status(400).json({ error: 'Missing deviceName or power' })
 
         let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
@@ -762,7 +762,7 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
 /**
  * PUT /api/devices/updateCurrent/:deviceName
  */
- 
+
 /**
 * @swagger
 * /devices/updateReadings/{deviceName}:
@@ -803,8 +803,8 @@ router.put('/updateReadings/:deviceName', async (req: Request, res: Response) =>
     try {
         const { deviceName } = req.params
         const { current, voltage } = req.body
-        
-        if (!deviceName || current === undefined || voltage === undefined) 
+
+        if (!deviceName || current === undefined || voltage === undefined)
             return res.status(400).json({ error: 'Missing deviceName, current, or voltage' })
 
         let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)

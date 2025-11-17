@@ -4,8 +4,6 @@ import { Router, Request, Response } from "express"
 
 const router = Router()
 
-// TODO: Setup the swagger documentation for the MQTT stuff.
-
 router.post("/publish", asyncHandler(async (
     req: Request<{}, any, PublishBody>,
     res: Response

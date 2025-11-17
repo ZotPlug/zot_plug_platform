@@ -1,5 +1,6 @@
 import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 import { matches } from 'mqtt-pattern'
+import { updateEnergy, updateReadings } from './util'
 
 let client: MqttClient | null = null
 let reconnectAttempts = 0
@@ -43,10 +44,28 @@ export function getMqttClient(): MqttClient {
 		}
 		else ++reconnectAttempts
 	})
-	client.on('message', (topic, payload, packet) => {
-		console.log("Recieved Message")
-		console.log("Topic: ", topic)
-		console.log("Payload: ", payload.toString())
+	client.on('message', (topic, payload) => {
+		console.log("Received Message")
+		console.log("Topic:", topic)
+		const text = payload.toString()
+		console.log("Payload:", text)
+
+		let data = null
+		try {
+			data = JSON.parse(text)
+		} catch (err) {
+			console.error("Invalid JSON payload:", text)
+			return
+		}
+
+		try {
+			if (data === null) throw new Error("Data from device is null.")
+			updateEnergy(data)
+			updateReadings(data)
+
+		} catch (err) {
+			console.error("Error in update db req. Device to db: ", err)
+		}
 	})
 	client.on("close", () => console.log("[mqtt] closed"))
 	client.on("error", (err) => console.error("[mqtt] error:", err.message))
