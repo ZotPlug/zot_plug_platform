@@ -28,9 +28,17 @@ void read_and_print_Irms(){
         }
 }
 
-void calculate_power(PowerCalcMode mode){
-            Irms = (mode == PowerCalcMode::pin) ? emon1.calcIrms(1480) : 0.5;
+double get_current_reading(SensorMode mode){
+        return (mode == SensorMode::pin) ? emon1.calcIrms(1480) : random(100, 900) / 1000.0;
+}
 
+int get_voltage_reading(SensorMode mode){
+        // Mainly just for example
+        return random(V_LINE - 5, V_LINE + 5);
+}
+
+void calculate_energy(SensorMode mode){
+            Irms = get_current_reading(mode);
             // Estimate real power (Watts)
             realPower = Irms * V_LINE * POWER_FACTOR;
 
@@ -54,8 +62,8 @@ void calculate_power(PowerCalcMode mode){
             Serial.println(energy_kWh, 9);
 }
 
-double get_and_reset_power_total(PowerCalcMode mode){
-        calculate_power(mode);
+double get_and_reset_energy_total(SensorMode mode){
+        calculate_energy(mode);
         double temp = energy_kWh;
         energy_kWh = 0;
         return temp;

@@ -1,6 +1,7 @@
 #include "mqtt_config.h"
 #include "HardwareSerial.h"
 #include <WiFi.h>
+#include <ArduinoJson.h>
 
 WiFiClient espClient;
 
@@ -39,9 +40,7 @@ void reconnect(const char *client_id, const char *client_user, const char *clien
 }
 
 void publish_message(const char* topic, const char* payload, unsigned int message_size ){
-  char buffer[message_size];
-  snprintf(buffer, sizeof(buffer), "%s", payload);
-  client.publish(topic, buffer);
+  client.publish(topic, payload, message_size);
 }
 
 void connect_setup_mqtt(const char *ssid, const char *password, const char *mqtt_server, unsigned int port, void (*callback)(char*, byte*, unsigned int)){

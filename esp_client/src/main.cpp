@@ -6,6 +6,7 @@
 #include "HardwareSerial.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 /* Global Pin Config */
 const unsigned int ledPin_external = 14;
@@ -45,11 +46,25 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
     }
 }
 
-void send_power_reading(){
-    if(millis() - lastSendingTime >= timeInterval){
-                String s = String(get_and_reset_power_total(PowerCalcMode::test), 9); 
-                publish_message(env.pub.c_str(), s.c_str() , 50);
-                lastSendingTime = millis();
+void send_device_reading() {
+    if (millis() - lastSendingTime >= timeInterval) {
+        double power  = get_and_reset_energy_total(SensorMode::test);
+        int volts  = get_voltage_reading(SensorMode::test);      
+        double amps   = get_current_reading(SensorMode::test);
+
+        // Allocate small JSON document (adjust only if you add many keys)
+        StaticJsonDocument<128> doc;
+        doc["energy"]   = power;
+        doc["voltage"] = volts;
+        doc["current"] = amps;
+        doc["deviceName"]  = env.cid;
+
+        char buffer[128];
+        size_t len = serializeJson(doc, buffer);
+
+        publish_message(env.pub.c_str(), buffer, len);
+
+        lastSendingTime = millis();
     }
 }
 
@@ -106,7 +121,7 @@ void hardwareTask(void * parameter){
            Tweak N if you want quicker/steadier reads.
         */
         //read_and_print_Irms();
-        send_power_reading();
+        send_device_reading();
 
         vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }
