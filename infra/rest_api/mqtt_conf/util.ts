@@ -8,9 +8,10 @@ export type PublishBody = {
 }
 
 export type AcceptingBody = {
-	energy: number,
+	energyIncrement: number,
 	voltage: number,
 	current: number,
+	power: number,
 	deviceName: string
 }
 
@@ -19,30 +20,7 @@ export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunctio
 		fn(req, res, next).catch(next);
 	}
 
-export async function updateEnergy(params: AcceptingBody) {
-	try {
-		const res = await fetch(`http://localhost:4000/api/devices/updateEnergyUsage/${params.deviceName}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				deviceName: params.deviceName,
-				cumulativeEnergy: params.energy
-			})
-		})
-
-		if (!res.ok) {
-			console.error("HTTP error:", res.status);
-			const errBody = await res.text(); // body may not be JSON if it's an error
-			throw new Error(`Response body: ${errBody}`)
-		}
-	} catch (err) {
-		console.error('Error updating ENERGY from device to db: ', err)
-	}
-}
-
-export async function updateReadings(params: AcceptingBody) {
+export async function updateAllReadings(params: AcceptingBody) {
 	try {
 		const res = await fetch(`http://localhost:4000/api/devices/updateReadings/${params.deviceName}`, {
 			method: 'PUT',

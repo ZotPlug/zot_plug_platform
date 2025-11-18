@@ -518,14 +518,10 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 // UPDATE
 //=========================================================
 
-<<<<<<< HEAD
 /**
  * PUT /api/devices/updateDevice/:id - partial update
  */
 
-=======
- 
->>>>>>> main
 /**
 * @swagger
 * /devices/updateDevice/{id}:
@@ -666,7 +662,7 @@ router.put('/updateAllReadings/:deviceName', async (req: Request, res: Response)
 
         if (!deviceName || voltage === undefined || current === undefined || power === undefined || energyIncrement === undefined)
             return res.status(400).json({ error: 'Missing one of: deviceName, voltage, current, power, or energyIncrement' })
-        
+
         const latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
 
         const newCumulative = (latest.cumulative_energy ?? 0) + energyIncrement
@@ -811,14 +807,10 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
     }
 })
 
-<<<<<<< HEAD
 /**
  * PUT /api/devices/updateCurrent/:deviceName
  */
 
-=======
- 
->>>>>>> main
 /**
 * @swagger
 * /devices/updateReadings/{deviceName}:

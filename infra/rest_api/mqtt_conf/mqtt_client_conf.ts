@@ -1,6 +1,6 @@
 import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 import { matches } from 'mqtt-pattern'
-import { updateEnergy, updateReadings } from './util'
+import { updateAllReadings } from './util'
 
 let client: MqttClient | null = null
 let reconnectAttempts = 0
@@ -60,8 +60,7 @@ export function getMqttClient(): MqttClient {
 
 		try {
 			if (data === null) throw new Error("Data from device is null.")
-			updateEnergy(data)
-			updateReadings(data)
+			updateAllReadings(data)
 
 		} catch (err) {
 			console.error("Error in update db req. Device to db: ", err)
