@@ -5,6 +5,11 @@ import usersRouter from './routes/users'
 import devicesRouter from './routes/devices'
 import mqttRouter from './routes/mqtt'
 
+import express from "express"
+import bodyParser from "body-parser"
+import swaggerJsdoc from "swagger-jsdoc"
+import swaggerUi from "swagger-ui-express"
+
 // root route
 app.get('/', (req: Request, res: Response) => {
 	res.json({ message: 'Ello from node.js rest server!' })
@@ -16,10 +21,6 @@ app.post('/api/test', (req: Request, res: Response) => {
 })
 
 // Setup Swagger API documentation
-const express = require("express")
-const bodyParser = require("body-parser")
-const swaggerJsdoc = require("swagger-jsdoc")
-const swaggerUi = require("swagger-ui-express")
 
 const swaggerOptions = {
     definition: {
