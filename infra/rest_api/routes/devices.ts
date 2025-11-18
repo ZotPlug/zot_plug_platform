@@ -24,9 +24,6 @@ const router = Router()
 // READ
 //=========================================================
 
-/**
- * GET /api/devices/getAllDevices - list devices
- */
 
 /**
 * @swagger
@@ -60,9 +57,6 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
     }
 })
 
-/**
- * GET /api/devices/getDeviceById/:id
- */
 
 /**
 * @swagger
@@ -107,9 +101,6 @@ router.get('/getDeviceById/:id', async (req: Request, res: Response) => {
     }
 })
 
-/**
- * GET /api/devices/getAllDevicesByUserId/:id - get all devices by user ID
- */
 
 /**
 * @swagger
@@ -157,9 +148,6 @@ router.get('/getAllDevicesByUserId/:id', async (req: Request, res: Response) => 
     }
 })
 
-/**
- * GET /api/devices/getDeviceIdByName/:deviceName
- */
 
 /**
 * @swagger
@@ -209,9 +197,6 @@ router.get('/getDeviceIdByName/:deviceName', async (req: Request, res: Response)
     }
 })
 
-/**
- * GET /api/devices/getReadingsByDeviceName/:deviceName
- */
 
 /**
 * @swagger
@@ -255,9 +240,6 @@ router.get('/getReadingsByDeviceName/:deviceName', async (req: Request, res: Res
     }
 })
 
-/**
- * GET /api/devices/getReadingsByDeviceNameInRange/:deviceName
- */
 
 /**
 * @swagger
@@ -319,9 +301,6 @@ router.get('/getReadingsByDeviceNameInRange/:deviceName', async (req: Request, r
     }
 })
 
-/**
- * GET /api/devices/getLatestReading/:deviceName
- */
 
 /**
 * @swagger
@@ -448,10 +427,6 @@ router.get('/getDevicePolicy/:deviceName', async (req: Request, res: Response) =
 
 
 /**
- * GET /api/devices/getFaultyDevices - list faulty devices
- */
-
-/**
 * @swagger
 * /devices/getAllDevices:
 *   get:
@@ -486,9 +461,6 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 // CREATE
 //=========================================================
 
-/**
- * POST /api/devices/addDeviceMap - create device and map owner
- */
 
 /**
 * @swagger
@@ -546,9 +518,6 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 // UPDATE
 //=========================================================
 
-/**
- * PUT /api/devices/updateDevice/:id - partial update
- */
  
 /**
 * @swagger
@@ -629,8 +598,87 @@ function ensureLatestReading(latest: any, deviceName: string) {
 
 
 /**
- * PUT /api/devices/updateEnergyUsage/:deviceName
- */
+* @swagger
+* /devices/updateAllReadings/{deviceName}:
+*   put:
+*     summary: Update all device measurement fields (voltage, current, power) and increment cumulative energy.
+*     tags: [Devices]
+*     parameters:
+*       - in: path
+*         name: deviceName
+*         schema:
+*           type: string
+*         required: true
+*         description: The name of the device to update.
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*             schema:
+*               type: object
+*               required: 
+*                   - voltage
+*                   - current    
+*                   - power
+*                   - energyIncrement
+*               properties:
+*                   voltage:
+*                       type: number
+*                       description: New voltage reading (V).
+*                       example: 120.5
+*                   current:
+*                       type: number
+*                       description: New current reading (A).
+*                       example: 0.85
+*                   power:
+*                       type: number
+*                       description: New power reading (W). This value overwrites the previous measurement.
+*                       example: 102.4
+*                   energyIncrement:
+*                       type: number
+*                       description: >
+*                           The amount of energy (Wh) to **add** to the existing cumulative energy total.
+*                           This does *not* overwrite the stored cumulative energy; it increments it.
+*                       example: 0.12
+*     responses:
+*       200:
+*         description: New device reading entry recorded successfully.
+*         content:
+*           application/json:
+*             schema:
+*               $ref: '#/components/schemas/DeviceReading'
+*       400:
+*         description: Missing one or more required fields.
+*       500:
+*         description: Failed to update all readings.
+*/
+router.put('/updateAllReadings/:deviceName', async (req: Request, res: Response) => {
+    try {
+        const { deviceName } = req.params
+        const { voltage, current, power, energyIncrement } = req.body
+
+        if (!deviceName || voltage === undefined || current === undefined || power === undefined || energyIncrement === undefined)
+            return res.status(400).json({ error: 'Missing one of: deviceName, voltage, current, power, or energyIncrement' })
+        
+        const latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+
+        const newCumulative = (latest.cumulative_energy ?? 0) + energyIncrement
+
+        const updated = await addPowerReadingByDeviceName({
+            deviceName,
+            voltage,
+            current,
+            power,
+            cumulativeEnergy: newCumulative,
+            recordedAt: new Date().toISOString()
+        })
+
+        res.json(updated)
+    } catch (err) {
+        console.error('Update all readings error:', err)
+        res.status(500).json({ error: 'Failed to update all readings' })
+    }
+})
 
 /**
 * @swagger
@@ -693,9 +741,6 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
     }
 })
 
-/**
- * PUT /api/devices/updatePower/:deviceName
- */
 
 /**
 * @swagger
@@ -759,9 +804,6 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
     }
 })
 
-/**
- * PUT /api/devices/updateCurrent/:deviceName
- */
  
 /**
 * @swagger
@@ -832,9 +874,6 @@ router.put('/updateReadings/:deviceName', async (req: Request, res: Response) =>
 // DELETE
 //=========================================================
 
-/**
- * DELETE /api/devices/deleteDevice/:id - soft delete
- */
 
 /**
 * @swagger
