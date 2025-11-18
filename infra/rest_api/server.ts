@@ -5,8 +5,6 @@ import usersRouter from './routes/users'
 import devicesRouter from './routes/devices'
 import mqttRouter from './routes/mqtt'
 
-import express from "express"
-import bodyParser from "body-parser"
 import swaggerJsdoc from "swagger-jsdoc"
 import swaggerUi from "swagger-ui-express"
 
