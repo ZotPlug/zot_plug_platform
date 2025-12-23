@@ -243,6 +243,62 @@
 *           description: The user's password.
 *       example:
 *         username: bobjonesman
-*         password: needToSwitchToSendingAHash            
+*         password: usersPassword
 */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     MqttPublish:
+ *       type: object
+ *       required:
+ *         - topic
+ *       properties:
+ *         topic:
+ *           type: string
+ *           description: MQTT topic name.
+ *         payload:
+ *           description: Can be object, string, or null.
+ *           oneOf:
+ *             - type: object
+ *               additionalProperties: true
+ *             - type: string
+ *             - type: "null"
+ *         qos:
+ *           type: integer
+ *           enum: [0, 1]
+ *           description: MQTT QoS level (0 or 1).
+ *         retain:
+ *           type: boolean
+ *           description: Whether to retain the last message on the broker.
+ *       example:
+ *         topic: "zotplug_000002/cmd/relay/on"
+ *         payload:
+ *           anyKeyValue: "Any string"
+ *           tip: "This entire payload can be replaced via a String or Null. Does not need to be an object."
+ *         qos: 0
+ *         retain: false
+ *
+ *     PublishSuccess:
+ *       type: object
+ *       required:
+ *         - ok
+ *       properties:
+ *         ok:
+ *           type: boolean
+ *           example: true
+ *
+ *     ErrorResponse:
+ *       type: object
+ *       required:
+ *         - error
+ *       properties:
+ *         error:
+ *           type: string
+ *           example: "topic required"
+ *
+ *     UnkownErrRes:
+ *       type: string
+ */
 
