@@ -4,6 +4,57 @@ import { Router, Request, Response } from "express"
 
 const router = Router()
 
+/**
+* @swagger
+* tags:
+*   name: Mqtt
+*   description: The Mqtt management API.
+*/
+
+/**
+ * @swagger
+ * /mqtt/publish:
+ *   post:
+ *     tags:
+ *       - Mqtt
+ *     summary: Publish a message to our MQTT server/ broker.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MqttPublish'
+ *     responses:
+ *       200:
+ *         description: Message published successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PublishSuccess'
+ *       400:
+ *         description: Missing required topic
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               error: topic required
+ *       403:
+ *         description: Topic not allowed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               error: topic not allowed
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UnkownErrRes'
+ */
+
 router.post("/publish", asyncHandler(async (
     req: Request<{}, any, PublishBody>,
     res: Response
