@@ -300,13 +300,25 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
 /**
  * Add a new power reading (voltage, current, power, etc.) and auto-handle faulty device logic.
  */
-export async function addPowerReadingByDeviceName(payload: NewPowerReading): Promise<any> {
-    const { deviceName, voltage, current, power, cumulativeEnergy, recordedAt } = payload
-    const deviceId = await getDeviceIdByName(deviceName)
-    if (!deviceId) throw new Error(`Device not found ${deviceName}`)
+export async function addPowerReading(payload: NewPowerReading): Promise<any> {
+    const { 
+        deviceId: inputDeviceId, 
+        deviceName, 
+        voltage, 
+        current, 
+        power, 
+        cumulativeEnergy, 
+        recordedAt 
+    } = payload
+    
+    const deviceId = await resolveDeviceId(inputDeviceId, deviceName)
+    if (!deviceId)
+        throw new Error("Device not found")
     
     const isEmptyPayload = !voltage && !current && !power && !cumulativeEnergy
-    const recordedAtVal = recordedAt ? new Date(recordedAt).toISOString() : new Date().toISOString()
+    const recordedAtVal = recordedAt 
+        ? new Date(recordedAt).toISOString() 
+        : new Date().toISOString()
 
     // safety net: fallback to zero if payload is empty or missing fields
     const safeVoltage = voltage ?? 0
@@ -365,31 +377,39 @@ export async function addPowerReadingByDeviceName(payload: NewPowerReading): Pro
 /**
  * Update device metadata fields (name, status, last_seen) selectively by ID.
  */
-export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateDevice): Promise<any | null> {
+export async function updateDevice(payload: UpdateDevice): Promise<any | null> {
+    const {
+        deviceId: inputDeviceId,
+        deviceName,
+        newDeviceName,
+        status,
+        lastSeen,
+    } = payload
+    
+    const deviceId = await resolveDeviceId(inputDeviceId, undefined)
+    if (!deviceId)
+        throw new Error("Device not found")
+
     const updates: string[] = []
     const values: (string | number)[] = []
     let idx = 1
 
-    if (deviceName !== undefined) {
-        updates.push(`name = $${idx}`)
-        values.push(deviceName)
-        idx++
+    if (newDeviceName !== undefined) {
+        updates.push(`name = $${idx++}`)
+        values.push(newDeviceName)
     }
 
     if (status !== undefined) {
         updates.push(`status = $${idx}`)
         values.push(status)
-        idx++
     }
 
     if (lastSeen !== undefined) {
-        updates.push(`last_seen = $${idx}`)
+        updates.push(`last_seen = $${idx++}`)
         values.push(lastSeen)
-        idx++
     }
 
-    if (updates.length === 0)
-        return null
+    if (updates.length === 0) return null
 
     const query = `
         UPDATE devices
@@ -397,8 +417,8 @@ export async function updateDevice({ id, deviceName, status, lastSeen }: UpdateD
         WHERE id = $${idx} AND is_deleted = FALSE
         RETURNING *
     `
+    values.push(deviceId)
 
-    values.push(id)
     const { rows } = await pool.query(query, values)
     return rows[0] ?? null
 }

@@ -41,10 +41,11 @@ export interface NewDevice {
 }
 
 export interface UpdateDevice {
-    id: number,
-    deviceName?: string,
-    status?: "online" | "offline" | "error",
+    deviceId?: number
+    deviceName?: string
+    status?: "online" | "offline" | "error"
     lastSeen?: string
+    newDeviceName?: string
 }
 
 export type ByDeviceName = {
@@ -52,23 +53,24 @@ export type ByDeviceName = {
 }
 
 export interface NewPowerReading {
-    deviceName: string,
-    voltage? : number,
-    current? : number,
-    power? : number,
-    cumulativeEnergy? : number,
+    deviceId? : number
+    deviceName? : string
+    voltage? : number
+    current? : number
+    power? : number
+    cumulativeEnergy? : number
     recordedAt?: string
 }
 
 export interface UpdateDeviceMetadata {
-    deviceName: string,
-    imageUrl: string,
+    deviceName: string
+    imageUrl: string
 }
 
 export interface UpdateDevicePolicy {
-    deviceName: string,
-    dailyEnergyLimit?: number,                          // in watt-hours
-    allowedStart?: string,                               // HH:MM:SS
-    allowedEnd?: string                                  // HH:MM:SS
+    deviceName: string
+    dailyEnergyLimit?: number                           // in watt-hours
+    allowedStart?: string                               // HH:MM:SS
+    allowedEnd?: string                                 // HH:MM:SS
     isEnforced?: boolean
 }
