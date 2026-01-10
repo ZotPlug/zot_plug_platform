@@ -7,6 +7,7 @@ import {
     UpdateDeviceMetadata,
     UpdateDevicePolicy
 } from "./types/types";
+import { resolveDeviceId } from "./deviceResolver";
 
 //=========================================================
 // READ
@@ -79,17 +80,23 @@ export async function getAllDevicesByUserId(userId: number): Promise<any | null>
 }
 
 /**
- * Fetch the latest recorded power reading for a device by name.
+ * Fetch the latest power reading for a device identified by either deviceId or deviceName.
  */
-export async function getLatestReadingByDeviceName(deviceName: string) {
-    const deviceId = await getDeviceIdByName(deviceName)
+export async function getLatestReadings(
+    identifier: { deviceId?: number; deviceName?: string }
+) {
+    const deviceId = await resolveDeviceId(
+        identifier.deviceId,
+        identifier.deviceName
+    )
     if (!deviceId) return null
 
     const { rows } = await pool.query(
         `SELECT voltage, current, power, cumulative_energy, recorded_at
         FROM power_readings 
         WHERE device_id = $1 
-        ORDER BY recorded_at DESC LIMIT 1`,
+        ORDER BY recorded_at DESC 
+        LIMIT 1`,
         [deviceId]
     )
     
@@ -97,10 +104,17 @@ export async function getLatestReadingByDeviceName(deviceName: string) {
 }
 
 /**
- * Fetch aggregated energy statistics for a given device and time period.
+ * Fetch energy statistics for a device over a specified period (daily, weekly, monthly).
  */
-export async function getEnergyStatsByDeviceName(deviceName: string, periodType: 'daily'|'weekly'|'monthly', periodStart: string) {
-    const deviceId = await getDeviceIdByName(deviceName)
+export async function getEnergyStats(
+    identifier: { deviceId?: number; deviceName?: string },
+    periodType: 'daily'|'weekly'|'monthly',
+    periodStart: string
+) {
+    const deviceId = await resolveDeviceId(
+        identifier.deviceId,
+        identifier.deviceName
+    )
     if (!deviceId) return null
 
     const { rows } = await pool.query(
@@ -125,8 +139,13 @@ export async function getEnergyStatsByDeviceName(deviceName: string, periodType:
 /**
  * Fetch the active device policy (usage limits, allowed hours, etc.) for a device.
  */
-export async function getDevicePolicy(deviceName: string) {
-    const deviceId = await getDeviceIdByName(deviceName)
+export async function getDevicePolicy(
+    identifier: { deviceId?: number; deviceName?: string }
+) {
+    const deviceId = await resolveDeviceId(
+        identifier.deviceId,
+        identifier.deviceName
+    )
     if (!deviceId) return null
 
     const { rows } = await pool.query(
@@ -141,10 +160,15 @@ export async function getDevicePolicy(deviceName: string) {
 }
 
 /**
- * Fetch all power readings for a given device, ordered newest to oldest.
+ * Fetch all historical power readings for a device.
  */
-export async function getAllReadingsByDeviceName(deviceName: string) {
-    const deviceId = await getDeviceIdByName(deviceName)
+export async function getAllReadingsPerDevice(
+    identifier: { deviceId?: number; deviceName?: string },
+) {
+    const deviceId = await resolveDeviceId(
+        identifier.deviceId,
+        identifier.deviceName
+    )
     if (!deviceId) return null
 
     const { rows } = await pool.query(
@@ -159,10 +183,17 @@ export async function getAllReadingsByDeviceName(deviceName: string) {
 }
 
 /**
- * Fetch readings within a specified time range (from–to ISO timestamps).
+ * Fetch power readings for a device within a specific time range (from–to ISO timestamps).
  */
-export async function getReadingsByDeviceNameInRange(deviceName: string, from: string, to: string) {
-    const deviceId = await getDeviceIdByName(deviceName)
+export async function getReadingsInRange(
+    identifier: { deviceId?: number; deviceName?: string },
+    from: string,
+    to: string
+) {
+    const deviceId = await resolveDeviceId(
+        identifier.deviceId,
+        identifier.deviceName
+    )
     if (!deviceId) return null
 
     const { rows } = await pool.query(
