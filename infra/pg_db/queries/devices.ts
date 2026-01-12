@@ -159,26 +159,6 @@ export async function getEnergyStats(
 }
 
 /**
- * Fetch the active device policy (usage limits, allowed hours, etc.) for a device.
- */
-export async function getDevicePolicy(
-    identifier: DeviceIdentifier
-) {
-    const deviceId = await resolveDeviceId( identifier.deviceId, identifier.deviceName )
-    if (deviceId === null) return null
-
-    const { rows } = await pool.query(
-        `SELECT daily_energy_limit, allowed_start, allowed_end, is_enforced, created_at 
-        FROM device_policies 
-        WHERE device_id = $1 
-        LIMIT 1`, 
-        [deviceId]
-    )
-
-    return rows[0] ?? null
-}
-
-/**
  * Fetch all historical power readings for a device.
  */
 export async function getAllReadingsPerDevice(
@@ -219,6 +199,26 @@ export async function getReadingsInRange(
     )
 
     return rows 
+}
+
+/**
+ * Fetch the active device policy (usage limits, allowed hours, etc.) for a device.
+ */
+export async function getDevicePolicy(
+    identifier: DeviceIdentifier
+) {
+    const deviceId = await resolveDeviceId( identifier.deviceId, identifier.deviceName )
+    if (deviceId === null) return null
+
+    const { rows } = await pool.query(
+        `SELECT daily_energy_limit, allowed_start, allowed_end, is_enforced, created_at 
+        FROM device_policies 
+        WHERE device_id = $1 
+        LIMIT 1`, 
+        [deviceId]
+    )
+
+    return rows[0] ?? null
 }
 
 /**
