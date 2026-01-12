@@ -19,8 +19,11 @@ export async function resolveDeviceId(
     if (deviceId)
         return deviceId
 
-    if (deviceName)
-        return await getDeviceIdByName(deviceName)
-    
+    if (deviceName) {
+        const id = await getDeviceIdByName(deviceName)
+        if (!id) throw new Error("Device not found")
+        return id
+    }
+        
     throw new Error("Missing device identifier")
 }

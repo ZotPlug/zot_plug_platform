@@ -40,16 +40,13 @@ export interface NewDevice {
     userId: number
 }
 
-export interface UpdateDevice {
-    deviceId?: number
-    deviceName?: string
-    status?: "online" | "offline" | "error"
-    lastSeen?: string
-    newDeviceName?: string
-}
-
 export type ByDeviceName = {
     deviceName: string
+}
+
+export type DeviceIdentifier = {
+    deviceId?: number,
+    deviceName?: string
 }
 
 export interface NewPowerReading {
@@ -62,13 +59,33 @@ export interface NewPowerReading {
     recordedAt?: string
 }
 
+export interface UpdateDevice {
+    deviceId?: number
+    deviceName?: string
+    status?: "online" | "offline" | "error"
+    lastSeen?: string
+    newDeviceName?: string
+}
+
+export interface EnergyStatsInput {
+    deviceId?: number
+    deviceName?: string
+    periodType: 'daily'|'weekly'|'monthly'
+    periodStart: string
+    totalEnergy?: number                           // in watt-hours
+    avgPower?: number                             // in watts
+    maxPower?: number                             // in watts
+}
+
 export interface UpdateDeviceMetadata {
-    deviceName: string
-    imageUrl: string
+    deviceId?: number
+    deviceName?: string
+    imageUrl?: string
 }
 
 export interface UpdateDevicePolicy {
-    deviceName: string
+    deviceId?: number
+    deviceName?: string
     dailyEnergyLimit?: number                           // in watt-hours
     allowedStart?: string                               // HH:MM:SS
     allowedEnd?: string                                 // HH:MM:SS
