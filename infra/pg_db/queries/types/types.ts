@@ -44,6 +44,7 @@ export type ByDeviceName = {
     deviceName: string
 }
 
+// One of deviceId or deviceName must be provided
 export type DeviceIdentifier = {
     deviceId?: number,
     deviceName?: string
@@ -72,7 +73,7 @@ export interface EnergyStatsInput {
     deviceName?: string
     periodType: 'daily'|'weekly'|'monthly'
     periodStart: string
-    totalEnergy?: number                           // in watt-hours
+    totalEnergy: number                           // in watt-hours
     avgPower?: number                             // in watts
     maxPower?: number                             // in watts
 }

@@ -3,10 +3,7 @@
 import { getDeviceIdByName } from './devices';
 
 /**
- * Resolves a device identifier based on provided deviceId or deviceName.
- * If both are provided, an error is thrown.
- * If neither is provided, an error is thrown.
- * If deviceName is provided, it fetches the corresponding deviceId from the database.
+ * Resolves a device identifier to a device ID.
  */ 
 export async function resolveDeviceId(
     deviceId?: number,
@@ -21,7 +18,7 @@ export async function resolveDeviceId(
 
     if (deviceName) {
         const id = await getDeviceIdByName(deviceName)
-        if (!id) throw new Error("Device not found")
+        if (id === null) throw new Error("Device not found")
         return id
     }
         
