@@ -133,10 +133,10 @@ router.get('/getAllDevices', async (req: Request, res: Response) => {
 */
 router.get('/getDeviceById', async (req: Request, res: Response) => {
     try {
-        const id = getNumberQuery(req.query.id)
-        if (id === undefined || id === null) return res.status(400).json({ error: 'Invalid or missing id' })
+        const deviceId = getNumberQuery(req.query.deviceId)
+        if (deviceId === undefined || deviceId === null) return res.status(400).json({ error: 'Invalid or missing id' })
 
-        const device = await getDeviceById(id)
+        const device = await getDeviceById(deviceId)
         if (!device) return res.status(404).json({ error: 'Device not found' })
 
         res.json(device)
@@ -226,7 +226,7 @@ router.get('/getDeviceIdByName', async (req: Request, res: Response) => {
 */
 router.get('/getAllDevicesByUserId', async (req: Request, res: Response) => {
     try {
-        const userId = getNumberQuery(req.query.id)
+        const userId = getNumberQuery(req.query.userId)
         if (userId === undefined || userId === null) return res.status(400).json({ error: 'Invalid or missing user id' })
 
         const devices = await getAllDevicesByUserId(userId)
