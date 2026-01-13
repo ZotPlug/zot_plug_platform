@@ -257,6 +257,7 @@ CREATE TABLE IF NOT EXISTS device_policies (
   last_violation TIMESTAMP,                                                -- Last time limit was exceeded
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP                           -- Last update time
+  CONSTRAINT device_policies_device_id_unique UNIQUE (device_id)
 );
 
 
