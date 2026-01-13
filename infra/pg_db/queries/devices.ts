@@ -450,7 +450,7 @@ export async function updateDevice(payload: UpdateDevice): Promise<any | null> {
 /**
  * Insert or update energy statistics for a device over a specified period.
  */
-export async function upsertDeviceEnergyStat(payload: EnergyStatsInput) {
+export async function upsertDeviceEnergyStats(payload: EnergyStatsInput) {
     const {
         deviceId: inputDeviceId,
         deviceName,

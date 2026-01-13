@@ -14,7 +14,7 @@ import {
     addDevice,
     addPowerReadings,
     updateDevice,
-    upsertDeviceEnergyStat,
+    upsertDeviceEnergyStats,
     upsertDeviceImage,
     upsertDevicePolicy,
     deleteDevice,
@@ -36,6 +36,35 @@ const getNumberQuery = (value: any): number | undefined => {
     if (!str) return undefined
     const num = Number(str)
     return Number.isNaN(num) ? undefined : num
+}
+
+const getString = (value: any): string | undefined => {
+    if (!value) return undefined
+    if (Array.isArray(value)) return String(value[0])
+    return String(value)
+}
+
+const getNumber = (value: any): number | undefined => {
+    const str = getString(value)
+    if (!str) return undefined
+    const num = Number(str)
+    return Number.isNaN(num) ? undefined : num
+}
+
+async function getLatest(deviceId?: number, deviceName?: string) {
+    const latest = await getLatestReadings({ deviceId, deviceName })
+    if (!latest) {
+        console.warn(`[INFO] No previous reading found for ${deviceName || deviceId}. Creating initial record.`)
+        return { voltage: 0, current: 0, power: 0, cumulative_energy: 0, recorded_at: new Date().toISOString() }
+    }
+    return latest
+}
+
+const ENERGY_PERIOD_TYPES = ["daily", "weekly", "monthly"] as const
+type EnergyPeriodType = typeof ENERGY_PERIOD_TYPES[number]
+
+function isEnergyPeriodType(value: any): value is EnergyPeriodType {
+    return ENERGY_PERIOD_TYPES.includes(value)
 }
 
 
@@ -501,7 +530,7 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 
 /**
 * @swagger
-* /devices/addDeviceMap:
+* /devices/addDevice:
 *   post:
 *     summary: Create device and map owner
 *     tags: [Devices]
@@ -531,19 +560,16 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 *         description: Failed to create device.
 *
 */
-router.post('/addDeviceMap', async (req: Request, res: Response) => {
+router.post('/addDevice', async (req: Request, res: Response) => {
     try {
         const { deviceName, userId } = req.body
-        if (!deviceName || !userId)
-            return res.status(400).json({ error: 'Missing name or userId' })
+        if (!deviceName || !userId) return res.status(400).json({ error: 'Missing name or userId' })
 
         const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)
 
     } catch (err: any) {
-        if (err?.code === '23505')
-            return res.status(409).json({ error: 'Device name already exists' })
-
+        if (err?.code === '23505') return res.status(409).json({ error: 'Device name already exists' })
         console.error('Failed to create device', err)
         res.status(500).json({ error: 'Failed to create device' })
 
@@ -599,49 +625,89 @@ router.post('/addDeviceMap', async (req: Request, res: Response) => {
 router.put('/updateDevice', async (req: Request, res: Response) => {
     try {
         const { deviceId, deviceName, newDeviceName, status, lastSeen } = req.body
+        if (!deviceId && !deviceName) return res.status(400).json({ error: 'Missing deviceId or deviceName' })
 
-        if (!deviceId && !deviceName)
-            return res.status(400).json({ error: 'Missing deviceId or deviceName' })
-
-        const updated = await updateDevice({
-            deviceId,
-            deviceName,
-            newDeviceName,
-            status,
-            lastSeen
-        })
-
+        const updated = await updateDevice({ deviceId, deviceName, newDeviceName, status, lastSeen })
         if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
         res.json(updated)
-
-        // const id = Number(req.params.id)
-        // if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
-
-        // const payload: any = {}
-        // if (req.body.name !== undefined) payload.name = req.body.name
-
-        // if (req.body.status !== undefined) payload.status = req.body.status
-
-        // if (req.body.last_seen !== undefined) payload.last_seen = req.body.last_seen
-
-        // payload.id = id
-
     } catch (err) {
         console.error('Update device error: ', err)
         res.status(500).json({ error: 'Failed to update device' })
     }
 })
 
-function ensureLatestReading(latest: any, deviceName: string) {
-    // if no prior reading, seed one with zero values
-    if (!latest) {
-        console.warn(`[INFO] No previous reading found for ${deviceName}. Creating initial record.`)
-        return { voltage: 0, current: 0, power: 0, cumulative_energy: 0, recorded_at: new Date().toISOString() }
+
+router.put('/updateEnergyStats', async (req: Request, res: Response) => {
+    try {
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
+        const periodTypeRaw = req.body.periodType
+        const periodStart = getString(req.body.periodStart)
+        const totalEnergy = getNumber(req.body.totalEnergy)
+        const avgPower = getNumber(req.body.avgPower)
+        const maxPower = getNumber(req.body.maxPower)
+
+        if (
+            (!deviceId && !deviceName) ||
+            !periodTypeRaw ||
+            !periodStart ||
+            totalEnergy === undefined
+        ) {
+            return res.status(400).json({ error: 'Missing deviceId/deviceName, periodType, periodStart, or totalEnergy' })
+        }
+
+        if (!isEnergyPeriodType(periodTypeRaw)) {
+            return res.status(400).json({ error: 'Invalid periodType' })
+        }  
+
+        const updated = await upsertDeviceEnergyStats({ deviceId, deviceName, periodType: periodTypeRaw, periodStart, totalEnergy, avgPower, maxPower})
+        if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
+        res.json(updated)
+    } catch (err) {
+        console.error('Update energy stat error: ', err)
+        res.status(500).json({ error: 'Failed to update energy stat' })
     }
+})
 
-    return latest
-}
 
+router.put('/updateDeviceImage', async (req: Request, res: Response) => {
+    try {
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
+        const imageUrl = getString(req.body.imageUrl)
+
+        if ((!deviceId && !deviceName) || !imageUrl) return res.status(400).json({ error: 'Missing deviceId/deviceName or imageUrl' })
+        
+        const updated = await upsertDeviceImage({ deviceId, deviceName, imageUrl })
+        if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
+        res.json(updated)
+    } catch (err) {
+        console.error('Update device image error: ', err)
+        res.status(500).json({ error: 'Failed to update device image' })
+    }
+})
+
+router.put('/updateDevicePolicy', async (req: Request, res: Response) => {
+    try {
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
+        const dailyEnergyLimit = getNumber(req.body.dailyEnergyLimit)
+        const allowedStart = getString(req.body.allowedStart)
+        const allowedEnd = getString(req.body.allowedEnd)
+        const isEnforced = 
+            typeof req.body.isEnforced === 'boolean'
+                ? req.body.isEnforced : undefined
+        
+        if ((!deviceId && !deviceName)) return res.status(400).json({ error: 'Missing deviceId or deviceName' })
+        
+        const updated = await upsertDevicePolicy({ deviceId, deviceName, dailyEnergyLimit, allowedStart, allowedEnd, isEnforced })        
+        if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
+        res.json(updated)
+    } catch (err) {
+        console.error('Update device policy error: ', err)
+        res.status(500).json({ error: 'Failed to update device policy' })
+    }
+})
 
 /**
 * @swagger
@@ -698,19 +764,20 @@ function ensureLatestReading(latest: any, deviceName: string) {
 *       500:
 *         description: Failed to update all readings.
 */
-router.put('/updateAllReadings/:deviceName', async (req: Request, res: Response) => {
+router.put('/updateAllReadings', async (req: Request, res: Response) => {
     try {
-        const { deviceName } = req.params
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
         const { voltage, current, power, energyIncrement } = req.body
 
-        if (!deviceName || voltage === undefined || current === undefined || power === undefined || energyIncrement === undefined)
-            return res.status(400).json({ error: 'Missing one of: deviceName, voltage, current, power, or energyIncrement' })
-
-        const latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
-
+        if ((!deviceId && !deviceName) || voltage === undefined || current === undefined || power === undefined || energyIncrement === undefined)
+            return res.status(400).json({ error: 'Missing one of: deviceId/deviceName, voltage, current, power, or energyIncrement' })
+    
+        const latest = await getLatest(deviceId, deviceName)
         const newCumulative = (latest.cumulative_energy ?? 0) + energyIncrement
 
-        const updated = await addPowerReadingByDeviceName({
+        const updated = await addPowerReadings({
+            deviceId,
             deviceName,
             voltage,
             current,
@@ -760,17 +827,19 @@ router.put('/updateAllReadings/:deviceName', async (req: Request, res: Response)
 *       500:
 *         description: Failed to update energy usage.
 */
-router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response) => {
+router.put('/updateEnergyUsage', async (req: Request, res: Response) => {
     try {
-        const { deviceName } = req.params
-        const { cumulativeEnergy } = req.body
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
+        const {  cumulativeEnergy } = req.body
 
-        if (!deviceName || cumulativeEnergy === undefined)
-            return res.status(400).json({ error: 'Missing deviceName or cumulativeEnergy' })
+        if ((!deviceId && !deviceName) || cumulativeEnergy === undefined)
+            return res.status(400).json({ error: 'Missing deviceId/deviceName or cumulativeEnergy' })
 
-        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+        const latest = await getLatest(deviceId, deviceName)
 
-        const updated = await addPowerReadingByDeviceName({
+        const updated = await addPowerReadings({
+            deviceId,
             deviceName,
             voltage: latest.voltage,
             current: latest.current,
@@ -780,7 +849,6 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
         })
 
         res.json(updated)
-
     } catch (err) {
         console.error('Update energy usage error:', err)
         res.status(500).json({ error: 'Failed to update energy usage' })
@@ -822,18 +890,19 @@ router.put('/updateEnergyUsage/:deviceName', async (req: Request, res: Response)
 *       500:
 *         description: Failed to update power.
 */
-router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
+router.put('/updatePower', async (req: Request, res: Response) => {
     try {
-        const { deviceName } = req.params
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
         const { power } = req.body
+        
+        if ((!deviceId && !deviceName) || power === undefined)
+            return res.status(400).json({ error: 'Missing deviceId/deviceName or power' })
 
-        if (!deviceName || power === undefined)
-            return res.status(400).json({ error: 'Missing deviceName or power' })
+        const latest = await getLatest(deviceId, deviceName)
 
-        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
-
-
-        const updated = await addPowerReadingByDeviceName({
+        const updated = await addPowerReadings({
+            deviceId,
             deviceName,
             voltage: latest.voltage,
             current: latest.current,
@@ -843,16 +912,11 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
         })
 
         res.json(updated)
-
     } catch (err) {
         console.error('Update power error:', err)
         res.status(500).json({ error: 'Failed to update power' })
     }
 })
-
-/**
- * PUT /api/devices/updateCurrent/:deviceName
- */
 
 /**
 * @swagger
@@ -890,17 +954,19 @@ router.put('/updatePower/:deviceName', async (req: Request, res: Response) => {
 *       500:
 *         description: Failed to update current.
 */
-router.put('/updateReadings/:deviceName', async (req: Request, res: Response) => {
+router.put('/updateCurrentAndVoltage', async (req: Request, res: Response) => {
     try {
-        const { deviceName } = req.params
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
         const { current, voltage } = req.body
 
-        if (!deviceName || current === undefined || voltage === undefined)
-            return res.status(400).json({ error: 'Missing deviceName, current, or voltage' })
+        if ((!deviceId && !deviceName) || current === undefined || voltage === undefined)
+            return res.status(400).json({ error: 'Missing deviceId/deviceName, current, or voltage' })
 
-        let latest = ensureLatestReading(await getLatestReadingByDeviceName(deviceName), deviceName)
+        const latest = await getLatest(deviceId, deviceName)
 
-        const updated = await addPowerReadingByDeviceName({
+        const updated = await addPowerReadings({
+            deviceId,
             deviceName,
             voltage,
             current,
@@ -910,7 +976,6 @@ router.put('/updateReadings/:deviceName', async (req: Request, res: Response) =>
         })
 
         res.json(updated)
-
     } catch (err) {
         console.error('Update current error:', err)
         res.status(500).json({ error: 'Failed to update current' })
@@ -955,15 +1020,12 @@ router.put('/updateReadings/:deviceName', async (req: Request, res: Response) =>
 */
 router.delete('/deleteDevice', async (req: Request, res: Response) => {
     try {
-        const { deviceId, deviceName } = req.body
-        if (!deviceId && !deviceName)
-            return res.status(400).json({ error: 'Missing deviceId or deviceName' })
+        const deviceId = getNumber(req.body.deviceId)
+        const deviceName = getString(req.body.deviceName)
 
-        const deleted = await deleteDevice({
-            deviceId: deviceId ? Number(deviceId) : undefined,
-            deviceName: deviceName ? String(deviceName) : undefined
-        })
+        if (!deviceId && !deviceName) return res.status(400).json({ error: 'Missing deviceId or deviceName' })
 
+        const deleted = await deleteDevice({ deviceId, deviceName })
         if (!deleted) return res.status(404).json({ error: 'Device not found' })
         res.json(deleted)
     } catch (err) {
