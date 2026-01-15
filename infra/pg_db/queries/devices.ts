@@ -10,6 +10,7 @@ import {
     UpdateDevicePolicy
 } from "./types/types";
 import { resolveDeviceId } from "./deviceResolver";
+import { Buffer } from "buffer";
 
 //=========================================================
 // HELPER FUNCTIONS
