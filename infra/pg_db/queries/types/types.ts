@@ -50,7 +50,7 @@ export type DeviceIdentifier = {
     deviceName?: string
 }
 
-export interface NewPowerReading {
+export interface NewReading {
     deviceId? : number
     deviceName? : string
     voltage? : number
@@ -81,7 +81,7 @@ export interface EnergyStatsInput {
 export interface UpdateDeviceMetadata {
     deviceId?: number
     deviceName?: string
-    imageUrl?: string
+    imageBase64?: string                          // base64-encoded image data
 }
 
 export interface UpdateDevicePolicy {

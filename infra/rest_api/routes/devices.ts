@@ -12,11 +12,10 @@ import {
     getDevicePolicy,
     getFaultyDevices,
     addDevice,
-    addPowerReadings,
+    addReadings,
     updateDevice,
     upsertDeviceEnergyStats,
     upsertDeviceImage,
-    upsertDevicePolicy,
     deleteDevice,
 } from '../../pg_db/queries/devices'
 
@@ -786,8 +785,8 @@ router.put('/updateEnergyStats', async (req: Request, res: Response) => {
  * @swagger
  * /devices/updateDeviceImage:
  *   put:
- *     summary: Update a device's image URL
- *     description: Insert or update the image URL for a specific device.
+ *     summary: Update a device's image
+ *     description: Insert or update a PNG or JPEG image for a device using Base64 encoding.
  *     tags: [Devices]
  *     requestBody:
  *       required: true
@@ -804,9 +803,9 @@ router.put('/updateEnergyStats', async (req: Request, res: Response) => {
  *                 description: The name of the device to update (optional if deviceId is provided)
  *               imageUrl:
  *                 type: string
- *                 description: The new image URL for the device
+ *                 description: Base64-encoded PNG or JPEG image data
  *             required:
- *               - imageUrl
+ *               - imageBase64
  *     responses:
  *       200:
  *         description: Device image successfully updated
@@ -825,11 +824,11 @@ router.put('/updateDeviceImage', async (req: Request, res: Response) => {
     try {
         const deviceId = getNumber(req.body.deviceId)
         const deviceName = getString(req.body.deviceName)
-        const imageUrl = getString(req.body.imageUrl)
+        const imageBase64 = getString(req.body.imageBase64)
 
-        if ((!deviceId && !deviceName) || !imageUrl) return res.status(400).json({ error: 'Missing deviceId/deviceName or imageUrl' })
+        if ((!deviceId && !deviceName) || !imageBase64) return res.status(400).json({ error: 'Missing deviceId/deviceName or imageBase64' })
         
-        const updated = await upsertDeviceImage({ deviceId, deviceName, imageUrl })
+        const updated = await upsertDeviceImage({ deviceId, deviceName, imageBase64 })
         if (!updated) return res.status(404).json({ error: 'Device not found or no changes applied' })
         res.json(updated)
     } catch (err) {
@@ -977,7 +976,7 @@ router.put('/updateAllReadings', async (req: Request, res: Response) => {
         const latest = await getLatest(deviceId, deviceName)
         const newCumulative = (latest.cumulative_energy ?? 0) + energyIncrement
 
-        const updated = await addPowerReadings({
+        const updated = await addReadings({
             deviceId,
             deviceName,
             voltage,
@@ -1046,7 +1045,7 @@ router.put('/updateEnergyUsage', async (req: Request, res: Response) => {
 
         const latest = await getLatest(deviceId, deviceName)
 
-        const updated = await addPowerReadings({
+        const updated = await addReadings({
             deviceId,
             deviceName,
             voltage: latest.voltage,
@@ -1115,7 +1114,7 @@ router.put('/updatePower', async (req: Request, res: Response) => {
 
         const latest = await getLatest(deviceId, deviceName)
 
-        const updated = await addPowerReadings({
+        const updated = await addReadings({
             deviceId,
             deviceName,
             voltage: latest.voltage,
@@ -1189,7 +1188,7 @@ router.put('/updateCurrentAndVoltage', async (req: Request, res: Response) => {
 
         const latest = await getLatest(deviceId, deviceName)
 
-        const updated = await addPowerReadings({
+        const updated = await addReadings({
             deviceId,
             deviceName,
             voltage,

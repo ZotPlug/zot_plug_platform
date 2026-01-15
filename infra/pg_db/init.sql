@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS device_energy_stats (
 DROP TABLE IF EXISTS device_metadata CASCADE;
 CREATE TABLE IF NOT EXISTS device_metadata (
   device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,     -- FK to device (1:1 mapping)
-  image_url TEXT,                                                             -- URL to device image
+  image_data BYTEA,                                                           -- Raw PNG/JPEG image data
   firmware_version VARCHAR(64),                                               -- Firmware version
   model VARCHAR(64),                                                          -- Model name/number  
   software_version VARCHAR(64),                                               -- Software version
@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS device_policies (
   is_enforced BOOLEAN DEFAULT TRUE,                                        -- Whether policy is active
   last_violation TIMESTAMP,                                                -- Last time limit was exceeded
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP                           -- Last update time
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                          -- Last update time
   CONSTRAINT device_policies_device_id_unique UNIQUE (device_id)
 );
 

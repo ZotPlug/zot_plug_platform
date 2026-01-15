@@ -3,7 +3,7 @@ import pool from "../db_config"
 import { 
     DeviceIdentifier,
     NewDevice, 
-    NewPowerReading, 
+    NewReading, 
     EnergyStatsInput,
     UpdateDevice, 
     UpdateDeviceMetadata,
@@ -313,7 +313,7 @@ export async function addDevice({ deviceName, userId }: NewDevice): Promise<any>
 /**
  * Add a new power reading for a device, handling empty payloads and faulty device marking.
  */
-export async function addPowerReadings(payload: NewPowerReading): Promise<any> {
+export async function addReadings(payload: NewReading): Promise<any> {
     const { 
         deviceId: inputDeviceId, 
         deviceName, 
@@ -336,27 +336,17 @@ export async function addPowerReadings(payload: NewPowerReading): Promise<any> {
         ? new Date(recordedAt).toISOString() 
         : new Date().toISOString()
 
-    // safety net: fallback to zero if payload is empty or missing fields
-    const safeVoltage = voltage ?? 0
-    const safeCurrent = current ?? 0
-    const instPower = 
-        voltage !== undefined && current !== undefined 
-            ? voltage * current 
-            : undefined
-    const safePower = power ?? instPower ?? 0
-    const safeCumulativeEnergy = cumulativeEnergy ?? 0
-
-    // insert into DB - always inserting a valid numeric record
+    // Insert values or default to zero
     const { rows } = await pool.query(`
         INSERT INTO power_readings (device_id, voltage, current, power, cumulative_energy, recorded_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *`, 
         [
             deviceId, 
-            safeVoltage, 
-            safeCurrent, 
-            safePower, 
-            safeCumulativeEnergy, 
+            voltage ?? 0, 
+            current ?? 0,
+            power ?? 0,
+            cumulativeEnergy ?? 0,
             recordedAtVal
         ]
     )
@@ -493,61 +483,73 @@ export async function upsertDeviceImage(payload: UpdateDeviceMetadata) {
     const {
         deviceId: inputDeviceId,
         deviceName,
-        imageUrl
+        imageBase64
     } = payload
 
+    if (!imageBase64) throw new Error('imageBase64 is required')
+
     const deviceId = await requireDeviceId(inputDeviceId, deviceName)
+
+    // Decode base64 image data
+    const imageBuffer = Buffer.from(imageBase64, 'base64')
+    
+    if (imageBuffer.length < 4) throw new Error('Invalid image data')
+
+    const isPng = imageBuffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
+    const isJpeg = imageBuffer.subarray(0, 3).equals(Buffer.from([0xFF, 0xD8, 0xFF]))
+
+    if (!isPng && !isJpeg) throw new Error('Image data is not valid PNG or JPEG')
 
     // device_metadata is 1:1 keyed by device_id; we upsert
     const { rows } = await pool.query(
-        `INSERT INTO device_metadata (device_id, image_url)
+        `INSERT INTO device_metadata (device_id, image_data)
         VALUES ($1, $2)
         ON CONFLICT (device_id)
-        DO UPDATE SET image_url = EXCLUDED.image_url
+        DO UPDATE SET image_data = EXCLUDED.image_data
         RETURNING *`,
-        [deviceId, imageUrl]
+        [deviceId, imageBuffer]
     )
 
     return rows[0]
 }
 
-/**
- * Insert or update the device’s policy settings (energy limits, allowed hours, etc.).
- */
-export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
-    const { 
-        deviceId: inputDeviceId,
-        deviceName, 
-        dailyEnergyLimit, 
-        allowedStart, 
-        allowedEnd, 
-        isEnforced 
-    } = payload
+// /**
+//  * Insert or update the device’s policy settings (energy limits, allowed hours, etc.).
+//  */
+// export async function upsertDevicePolicy(payload: UpdateDevicePolicy) {
+//     const { 
+//         deviceId: inputDeviceId,
+//         deviceName, 
+//         dailyEnergyLimit, 
+//         allowedStart, 
+//         allowedEnd, 
+//         isEnforced 
+//     } = payload
 
-    const deviceId = await requireDeviceId(inputDeviceId, deviceName)
+//     const deviceId = await requireDeviceId(inputDeviceId, deviceName)
 
-    const { rows } = await pool.query(
-        `INSERT INTO device_policies (device_id, daily_energy_limit, allowed_start, allowed_end, is_enforced, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-        ON CONFLICT (device_id)
-        DO UPDATE SET
-            daily_energy_limit = COALESCE(EXCLUDED.daily_energy_limit, device_policies.daily_energy_limit),
-            allowed_start = COALESCE(EXCLUDED.allowed_start, device_policies.allowed_start),
-            allowed_end = COALESCE(EXCLUDED.allowed_end, device_policies.allowed_end),
-            is_enforced = COALESCE(EXCLUDED.is_enforced, device_policies.is_enforced),
-            updated_at = NOW()
-        RETURNING *`,
-        [
-            deviceId, 
-            dailyEnergyLimit ?? null, 
-            allowedStart ?? null, 
-            allowedEnd ?? null, 
-            isEnforced ?? null
-        ]
-    )
+//     const { rows } = await pool.query(
+//         `INSERT INTO device_policies (device_id, daily_energy_limit, allowed_start, allowed_end, is_enforced, updated_at)
+//         VALUES ($1, $2, $3, $4, $5, NOW())
+//         ON CONFLICT (device_id)
+//         DO UPDATE SET
+//             daily_energy_limit = COALESCE(EXCLUDED.daily_energy_limit, device_policies.daily_energy_limit),
+//             allowed_start = COALESCE(EXCLUDED.allowed_start, device_policies.allowed_start),
+//             allowed_end = COALESCE(EXCLUDED.allowed_end, device_policies.allowed_end),
+//             is_enforced = COALESCE(EXCLUDED.is_enforced, device_policies.is_enforced),
+//             updated_at = NOW()
+//         RETURNING *`,
+//         [
+//             deviceId, 
+//             dailyEnergyLimit ?? null, 
+//             allowedStart ?? null, 
+//             allowedEnd ?? null, 
+//             isEnforced ?? null
+//         ]
+//     )
 
-    return rows[0]
-}
+//     return rows[0]
+// }
 
 
 //=========================================================
