@@ -22,7 +22,7 @@ export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunctio
 
 export async function updateAllReadings(params: AcceptingBody) {
 	try {
-		const res = await fetch(`http://localhost:4000/api/devices/updateReadings/${params.deviceName}`, {
+		const res = await fetch(`http://localhost:4000/api/devices/updateAllReadings`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json'

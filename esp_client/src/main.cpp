@@ -23,6 +23,9 @@ volatile boolean message_recieved = false;
 const unsigned int one_minute = 60000;
 unsigned long lastSendingTime = 0;
 unsigned int timeInterval = 0;
+constexpr unsigned int BUFFER_SIZE = 256;
+StaticJsonDocument<BUFFER_SIZE> doc;
+char buffer[BUFFER_SIZE];
 
 // When the server sends a message to this device. Via "client_subscribe_topic", decide what to do with it here.
 void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
@@ -48,18 +51,18 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
 
 void send_device_reading() {
     if (millis() - lastSendingTime >= timeInterval) {
-        double power  = get_and_reset_energy_total(SensorMode::test);
+        double energyIncrement  = get_and_reset_energy_total(SensorMode::test);
         int volts  = get_voltage_reading(SensorMode::test);      
         double amps   = get_current_reading(SensorMode::test);
+        double power_test_val = volts * amps;
 
         // Allocate small JSON document (adjust only if you add many keys)
-        StaticJsonDocument<128> doc;
-        doc["energy"]   = power;
+        doc["energyIncrement"] = energyIncrement;
         doc["voltage"] = volts;
         doc["current"] = amps;
         doc["deviceName"]  = env.cid;
+        doc["power"] = power_test_val;
 
-        char buffer[128];
         size_t len = serializeJson(doc, buffer);
 
         publish_message(env.pub.c_str(), buffer, len);
