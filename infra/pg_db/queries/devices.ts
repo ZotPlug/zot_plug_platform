@@ -327,7 +327,7 @@ export async function getUsageSeries(
 export async function getMostUsedDevices(
     userId: number,             // Only count devices belonging to this user
     range: TimeRange,
-    limit: 5                    // Max number of devices to return
+    limit: number = 5           // Max number of devices to return
 ): Promise<MostUsedDevice[]> {
     try {
         const { interval, periodType } = resolveRange(range)
