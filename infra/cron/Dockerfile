@@ -17,6 +17,7 @@ WORKDIR /cron
 COPY ./pg_db/package*.json ./
 RUN rm -rf node_modules
 RUN npm ci --omit=dev
+RUN npm install tsx
 
 # Copy backup script and crontab into container
 COPY pg_db/ ./pg_db
