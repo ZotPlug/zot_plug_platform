@@ -86,6 +86,12 @@ services:
       dockerfile: ./cron/Dockerfile
     container_name: cron
     profiles: ["prod"]
+    environment:
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USER=myuser
+      - PG_PASSWORD=mypassword
+      - PG_DATABASE=mydb
     volumes:
       - ~/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock

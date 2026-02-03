@@ -5,8 +5,10 @@ import { getAllUsers } from "./pg_db/queries/users";
 	try {
 		const data = await getAllUsers();
 		console.log(data)
+		process.exit(0);
 	} catch (e) {
-		throw new Error("Issue with Q: " + e);
+		console.error("Issue with Q: " + e);
+		process.exit(1);
 	}
 })()
 
