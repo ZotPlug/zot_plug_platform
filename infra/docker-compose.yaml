@@ -30,7 +30,7 @@ services:
       - zotplug_net
 
   frontend:
-    image: zotpluguci/zot_plug_frontend:beta
+    image: zotpluguci/zot_plug_frontend:alpha
     container_name: zot_plug_frontend
     profiles: ["prod"]
     expose:
