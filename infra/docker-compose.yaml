@@ -11,8 +11,8 @@ services:
       - BROKER_HOST=broker 
       - API_HOST=api
     volumes:
-      - /home/certs/etc:/etc/letsencrypt
-      - /home/certs:/data/letsencrypt
+      - ~/docker-certs/certs/etc:/etc/letsencrypt
+      - ~/docker-certs/certs:/data/letsencrypt
     networks:
       - zotplug_net
     depends_on:
@@ -24,8 +24,8 @@ services:
     profiles: ["prod"]
     restart: unless-stopped
     volumes:
-      - /home/certs/etc:/etc/letsencrypt
-      - /home/certs:/data/letsencrypt
+      - ~/docker-certs/certs/etc:/etc/letsencrypt
+      - ~/docker-certs/certs:/data/letsencrypt
     networks:
       - zotplug_net
 
@@ -81,11 +81,13 @@ services:
       - postgres-dev
 
   cron:
-    build: ./cron
+    build: 
+      context: .
+      dockerfile: ./cron/Dockerfile
     container_name: cron
     profiles: ["prod"]
     volumes:
-      - /home/pg_db/backups:/backups
+      - ~/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - zotplug_net
@@ -105,7 +107,7 @@ services:
     networks:
       - zotplug_net
     volumes:
-      - /home/pg_db/pgdata/:/var/lib/postgresql/data
+      - ~/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   postgres-dev:
@@ -121,7 +123,7 @@ services:
     networks:
       - zotplug_net
     volumes:
-      - ${HOME}/pg_db/pgdata/:/var/lib/postgresql/data
+      - ~/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 networks:
