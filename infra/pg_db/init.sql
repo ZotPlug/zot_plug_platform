@@ -363,6 +363,8 @@ CREATE INDEX idx_power_recorded_at
   ON power_readings(recorded_at);                                            -- Global time-based queries or cleanup jobs
 -- (Optional) For very large datasets, consider partitioning + BRIN on recorded_at
 -- CREATE INDEX idx_power_recorded_at_brin ON power_readings USING BRIN (recorded_at);
+CREATE INDEX idx_power_device_time_energy
+ON power_readings (device_id, recorded_at, cumulative_energy)                -- for 24h most used devices
 
 -- =========================================================
 -- ENERGY STATISTICS (aggregates)

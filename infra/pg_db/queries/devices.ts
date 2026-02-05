@@ -296,23 +296,23 @@ export async function getUsageSeries(
             `, [bucket, userId, interval, deviceId ?? null])
 
             return rows
+        } else {
+            const { rows } = await pool.query(`
+                SELECT 
+                    des.period_start::timestamp AS timestamp,
+                    SUM(des.total_energy) AS value
+                FROM device_energy_stats des
+                JOIN user_device_map udm ON des.device_id = udm.device_id
+                WHERE udm.user_id = $1
+                    AND des.period_type = $2
+                    AND des.period_start >= CURRENT_DATE -$3::interval
+                    AND ($4::int IS NULL OR des.device_id = $4)
+                GROUP BY des.period_start
+                ORDER BY des.period_start ASC
+            `, [userId, periodType, interval, deviceId ?? null])
+
+            return rows
         }
-
-        const { rows } = await pool.query(`
-            SELECT 
-                des.period_start::timestamp AS timestamp,
-                SUM(des.total_energy) AS value
-            FROM device_energy_stats des
-            JOIN user_device_map udm ON des.device_id = udm.device_id
-            WHERE udm.user_id = $1
-                AND des.period_type = $2
-                AND des.period_start >= CURRENT_DATE -$3::interval
-                AND ($4::int IS NULL OR des.device_id = $4)
-            GROUP BY des.period_start
-            ORDER BY des.period_start ASC
-        `, [userId, periodType, interval, deviceId ?? null])
-
-        return rows
 
     } catch (err) {
         console.error('Error fetching usage series:', err)
@@ -330,26 +330,46 @@ export async function getMostUsedDevices(
     limit: number = 5           // Max number of devices to return
 ): Promise<MostUsedDevice[]> {
     try {
-        const { interval, periodType } = resolveRange(range)
+        if (range === '24h') {
+            const { rows } = await pool.query(`
+                SELECT 
+                    d.id AS device_id,
+                    d.name AS device_name,
+                    MAX(pr.cumulative_energy) - MIN(pr.cumulative_energy) AS total_energy
+                FROM power_readings pr
+                JOIN devices d ON d.id = pr.device_id
+                JOIN user_device_map udm ON udm.device_id = d.id
+                WHERE udm.user_id = $1
+                    AND pr.recorded_at >= NOW() - INTERVAL '24 hours'
+                    AND d.is_deleted = FALSE
+                GROUP BY d.id, d.name
+                ORDER BY total_energy DESC
+                LIMIT $4
+            `, [userId, limit])
 
-        const { rows } = await pool.query(`
-            SELECT 
-                d.id AS device_id,
-                d.name AS device_name,
-                SUM(des.total_energy) AS total_energy
-            FROM device_energy_stats des
-            JOIN devices d ON d.id = des.device_id
-            JOIN user_device_map udm ON udm.device_id = d.id
-            WHERE udm.user_id = $1
-                AND des.period_type = $2
-                AND des.period_start >= CURRENT_DATE - $3::interval
-                AND d.is_deleted = FALSE
-            GROUP BY d.id, d.name
-            ORDER BY total_energy DESC
-            LIMIT $4
-        `, [userId, periodType, interval, limit])
+            return rows
+        } else {
+            const { interval, periodType } = resolveRange(range)
 
-        return rows
+            const { rows } = await pool.query(`
+                SELECT 
+                    d.id AS device_id,
+                    d.name AS device_name,
+                    SUM(des.total_energy) AS total_energy
+                FROM device_energy_stats des
+                JOIN devices d ON d.id = des.device_id
+                JOIN user_device_map udm ON udm.device_id = d.id
+                WHERE udm.user_id = $1
+                    AND des.period_type = $2
+                    AND des.period_start >= CURRENT_DATE - $3::interval
+                    AND d.is_deleted = FALSE
+                GROUP BY d.id, d.name
+                ORDER BY total_energy DESC
+                LIMIT $4
+            `, [userId, periodType, interval, limit])
+
+            return rows
+        }
     } catch (err) {
         console.error('Error fetching most used devices:', err)
         throw err
