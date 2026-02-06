@@ -14,7 +14,7 @@ async function aggregateDailyEnergy(date = new Date()) {
     const dayEnd = new Date(dayStart)
     dayEnd.setHours(23, 59, 59, 999)
 
-    console.log(`[AGG] Aggregating energy for ${dayStart.toDateString()}`)
+    // console.log(`[AGG] Aggregating energy for ${dayStart.toDateString()}`)
     
     await pool.query(`
         INSERT INTO device_energy_stats (
@@ -46,7 +46,7 @@ async function aggregateDailyEnergy(date = new Date()) {
             updated_at = EXCLUDED.updated_at
     `, [dayStart, dayEnd])
 
-    console.log(`[AGG] Daily energy aggregation completed for ${dayStart.toDateString()}`)
+    // console.log(`[AGG] Daily energy aggregation completed for ${dayStart.toDateString()}`)
 }
 
 aggregateDailyEnergy()
