@@ -1,5 +1,5 @@
-0 * * * * /backup.sh >> /var/log/cron.log 2>&1
-0 * * * * npx tsx place_holder_script.ts >> /var/log/cron.log 2>&1
+0 0 * * * /backup.sh >> /var/log/cron.log 2>&1
+10 0 * * * npx tsx aggregateDailyEnergy.ts >> /var/log/cron.log 2>&1
 
 
 

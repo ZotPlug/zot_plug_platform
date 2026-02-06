@@ -1,4 +1,4 @@
-import pool from '../pg_db/db_config'
+import pool from './pg_db/db_config'
 
 /**
  * Aggregates daily energy statistics for all devices.

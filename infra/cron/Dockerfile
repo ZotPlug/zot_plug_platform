@@ -21,7 +21,7 @@ RUN npm install tsx
 
 # Copy backup script and crontab into container
 COPY pg_db/ ./pg_db
-COPY ./cron/place_holder_script.ts ./place_holder_script.ts
+COPY ./cron/aggregateDailyEnergy.ts ./aggregateDailyEnergy.ts
 COPY ./cron/backup.sh ./backup.sh
 COPY ./cron/crontab /etc/crontabs/root
 
