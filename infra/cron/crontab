@@ -1,3 +1,5 @@
 0 * * * * /backup.sh >> /var/log/cron.log 2>&1
+0 0 * * * npx tsx aggregateDailyEnergy.ts >> /var/log/cron.log 2>&1
+
 
 
