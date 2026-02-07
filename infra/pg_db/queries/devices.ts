@@ -36,26 +36,30 @@ async function requireDeviceId(
 }
 
 
-function resolveRange(range: TimeRange) {
+function resolveRange(range: TimeRange): ResolvedRange {
     switch (range) {
         case '24h':
             return {
                 interval: '24 hours',
                 bucket: 'hour',
-                periodType: 'daily' as const,
+                periodType: 'daily',
             }
         case '7d':
             return {
                 interval: '7 days',
                 bucket: 'day',
-                periodType: 'daily' as const,
+                periodType: 'daily',
             }
         case '30d':
             return {
                 interval: '30 days',
                 bucket: 'day',
-                periodType: 'daily' as const,
+                periodType: 'daily',
             }
+        default: {
+            const _exhaustive: never = range
+            throw new Error(`Invalid time range: ${_exhaustive}`)
+        }
     }
 }
 
