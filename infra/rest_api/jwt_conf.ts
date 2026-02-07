@@ -22,7 +22,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
 		next()
 	})
 }
-
+ 
 
 export function craft_and_set_jwt(req: Request, res: Response): string {
 	const token = jwt.sign({}, SECRET_KEY ?? "", { expiresIn: "1h" })
@@ -45,6 +45,7 @@ export function verifyToken(token: string): boolean {
 }
 
 function validPath(path: string, req: Request) {
+	console.log("Made it here", path)
 	const isCheckUserCreds = path.startsWith("/api/users/checkUserCreds")
 	const isUserPost = path.startsWith("/api/users") && req.method === 'POST'
 	const isTestRoute = path.startsWith("/api/test")

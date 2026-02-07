@@ -105,3 +105,9 @@ export type MostUsedDevice = {
     device_name: string,
     total_energy: number
 }
+
+export type ResolvedRange = {
+    interval: string,
+    bucket: string,
+    periodType: 'daily'
+}

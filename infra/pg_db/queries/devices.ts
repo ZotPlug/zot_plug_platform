@@ -10,7 +10,8 @@ import {
     UpdateDevicePolicy,
     TimeRange,
     UsageSeriesPoint,
-    MostUsedDevice
+    MostUsedDevice,
+    ResolvedRange
 } from "./types/types";
 import { resolveDeviceId } from "./deviceResolver";
 import { Buffer } from "buffer";
