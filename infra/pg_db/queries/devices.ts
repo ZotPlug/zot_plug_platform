@@ -280,20 +280,24 @@ export async function getUsageSeries(
 ): Promise<UsageSeriesPoint[]> {
     try {
         const { interval, bucket, periodType } = resolveRange(range)
+        const bucketSql =
+            bucket === 'hour' ? 'hour' :
+            bucket === 'day'  ? 'day'  :
+            'hour' // fallback
 
         if (range === '24h') {
             const { rows } = await pool.query(`
                 SELECT 
-                    DATE_TRUNC($1, pr.recorded_at) AS timestamp,
+                    DATE_TRUNC('${bucketSql}', pr.recorded_at) AS timestamp,
                     AVG(pr.power) AS value
                 FROM power_readings pr
                 JOIN user_device_map udm ON pr.device_id = udm.device_id
-                WHERE udm.user_id = $2
-                    AND pr.recorded_at >= NOW() - $3::interval
-                    AND ($4::int IS NULL OR pr.device_id = $4)
+                WHERE udm.user_id = $1
+                    AND pr.recorded_at >= NOW() - $2::interval
+                    AND ($3::int IS NULL OR pr.device_id = $3)
                 GROUP BY timestamp
                 ORDER BY timestamp ASC
-            `, [bucket, userId, interval, deviceId ?? null])
+            `, [userId, interval, deviceId ?? null])
 
             return rows
         } else {
@@ -344,7 +348,7 @@ export async function getMostUsedDevices(
                     AND d.is_deleted = FALSE
                 GROUP BY d.id, d.name
                 ORDER BY total_energy DESC
-                LIMIT $4
+                LIMIT $2
             `, [userId, limit])
 
             return rows

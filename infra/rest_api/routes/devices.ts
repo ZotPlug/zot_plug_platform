@@ -674,7 +674,7 @@ router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
         const devices = await getMostUsedDevices(userId, range, limit)
         res.json(devices)
     } catch (err) {
-        console.error('Get usage series error:', err)
+        console.error('Get most used devices error:', err)
         res.status(500).json({ error: 'Failed to fetch most used devices' })
     }
 })
