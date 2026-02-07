@@ -7,7 +7,11 @@ import {
     EnergyStatsInput,
     UpdateDevice, 
     UpdateDeviceMetadata,
-    UpdateDevicePolicy
+    UpdateDevicePolicy,
+    TimeRange,
+    UsageSeriesPoint,
+    MostUsedDevice,
+    ResolvedRange
 } from "./types/types";
 import { resolveDeviceId } from "./deviceResolver";
 import { Buffer } from "buffer";
@@ -29,6 +33,34 @@ async function requireDeviceId(
         throw new Error(`Device not found (${deviceName ?? deviceId})`)
     }
     return id
+}
+
+
+function resolveRange(range: TimeRange): ResolvedRange {
+    switch (range) {
+        case '24h':
+            return {
+                interval: '24 hours',
+                bucket: 'hour',
+                periodType: 'daily',
+            }
+        case '7d':
+            return {
+                interval: '7 days',
+                bucket: 'day',
+                periodType: 'daily',
+            }
+        case '30d':
+            return {
+                interval: '30 days',
+                bucket: 'day',
+                periodType: 'daily',
+            }
+        default: {
+            const _exhaustive: never = range
+            throw new Error(`Invalid time range: ${_exhaustive}`)
+        }
+    }
 }
 
 //=========================================================
@@ -241,6 +273,117 @@ export async function getFaultyDevices(): Promise<any[]> {
     }
 }
 
+/**
+ * Fetch usage statistics for a user, optionally filtered by a single device. 
+ * Supports 24h (hourly), 7d (daily), and 30d (daily) ranges.
+ * Returns either individual device usage or total usage for all devices owned by the user. 
+ */
+export async function getUsageSeries(
+    userId: number,         // The user whos devices to query
+    range: TimeRange,       // '24h', '7d', '30d'
+    deviceId?: number       // Optional: narrow to a specific device
+): Promise<UsageSeriesPoint[]> {
+    try {
+        const { interval, bucket, periodType } = resolveRange(range)
+        const bucketSql =
+            bucket === 'hour' ? 'hour' :
+            bucket === 'day'  ? 'day'  :
+            'hour' // fallback
+
+        if (range === '24h') {
+            const { rows } = await pool.query(`
+                SELECT 
+                    DATE_TRUNC('${bucketSql}', pr.recorded_at) AS timestamp,
+                    AVG(pr.power) AS value
+                FROM power_readings pr
+                JOIN user_device_map udm ON pr.device_id = udm.device_id
+                WHERE udm.user_id = $1
+                    AND pr.recorded_at >= NOW() - $2::interval
+                    AND ($3::int IS NULL OR pr.device_id = $3)
+                GROUP BY timestamp
+                ORDER BY timestamp ASC
+            `, [userId, interval, deviceId ?? null])
+
+            return rows
+        } else {
+            const { rows } = await pool.query(`
+                SELECT 
+                    des.period_start::timestamp AS timestamp,
+                    SUM(des.total_energy) AS value
+                FROM device_energy_stats des
+                JOIN user_device_map udm ON des.device_id = udm.device_id
+                WHERE udm.user_id = $1
+                    AND des.period_type = $2
+                    AND des.period_start >= CURRENT_DATE -$3::interval
+                    AND ($4::int IS NULL OR des.device_id = $4)
+                GROUP BY des.period_start
+                ORDER BY des.period_start ASC
+            `, [userId, periodType, interval, deviceId ?? null])
+
+            return rows
+        }
+
+    } catch (err) {
+        console.error('Error fetching usage series:', err)
+        throw err
+    }
+}
+
+/**
+ * Fetch the most used devices for a user over a specified time range.
+ * Aggregates total energy per device and return the top N devices. 
+ */
+export async function getMostUsedDevices(
+    userId: number,             // Only count devices belonging to this user
+    range: TimeRange,
+    limit: number = 5           // Max number of devices to return
+): Promise<MostUsedDevice[]> {
+    try {
+        if (range === '24h') {
+            const { rows } = await pool.query(`
+                SELECT 
+                    d.id AS device_id,
+                    d.name AS device_name,
+                    MAX(pr.cumulative_energy) - MIN(pr.cumulative_energy) AS total_energy
+                FROM power_readings pr
+                JOIN devices d ON d.id = pr.device_id
+                JOIN user_device_map udm ON udm.device_id = d.id
+                WHERE udm.user_id = $1
+                    AND pr.recorded_at >= NOW() - INTERVAL '24 hours'
+                    AND d.is_deleted = FALSE
+                GROUP BY d.id, d.name
+                ORDER BY total_energy DESC
+                LIMIT $2
+            `, [userId, limit])
+
+            return rows
+        } else {
+            const { interval, periodType } = resolveRange(range)
+
+            const { rows } = await pool.query(`
+                SELECT 
+                    d.id AS device_id,
+                    d.name AS device_name,
+                    SUM(des.total_energy) AS total_energy
+                FROM device_energy_stats des
+                JOIN devices d ON d.id = des.device_id
+                JOIN user_device_map udm ON udm.device_id = d.id
+                WHERE udm.user_id = $1
+                    AND des.period_type = $2
+                    AND des.period_start >= CURRENT_DATE - $3::interval
+                    AND d.is_deleted = FALSE
+                GROUP BY d.id, d.name
+                ORDER BY total_energy DESC
+                LIMIT $4
+            `, [userId, periodType, interval, limit])
+
+            return rows
+        }
+    } catch (err) {
+        console.error('Error fetching most used devices:', err)
+        throw err
+    }
+}
 
 //=========================================================
 // CREATE

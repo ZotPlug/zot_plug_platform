@@ -11,6 +11,8 @@ import {
     getReadingsInRange,
     getDevicePolicy,
     getFaultyDevices,
+    getUsageSeries,
+    getMostUsedDevices,
     addDevice,
     addReadings,
     updateDevice,
@@ -18,6 +20,7 @@ import {
     upsertDeviceImage,
     deleteDevice,
 } from '../../pg_db/queries/devices'
+import { TimeRange } from '../../pg_db/queries/types/types'
 
 const router = Router()
 
@@ -570,6 +573,109 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
     } catch (err) {
         console.error('Get faulty devices error:', err)
         res.status(500).json({ error: 'Failed to fetch faulty devices' })
+    }
+})
+
+//=========================================================
+// USAGE & STATISTICS ROUTES
+//=========================================================
+
+/**
+ * @swagger
+ * /devices/getUsageSeries:
+ *   get:
+ *     summary: Get usage statistics for a user's devices
+ *     description: Returns usage statistics (power or total energy) for a user. Optional deviceId filter.
+ *     tags: [Devices]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *       - in: query
+ *         name: range
+ *         schema:
+ *           type: string
+ *           enum: [24h, 7d, 30d]
+ *         required: true
+ *       - in: query
+ *         name: deviceId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *     responses:
+ *       200:
+ *         description: Usage statistics returned.
+ *       400:
+ *         description: Missing or invalid parameters.
+ *       500:
+ *         description: Failed to fetch usage statistics.
+ */
+router.get('/getUsageSeries', async (req: Request, res: Response) => {
+    try {
+        const userId = getNumberQuery(req.query.userId)
+        const range = getStringQuery(req.query.range) as TimeRange
+        const deviceId = getNumberQuery(req.query.deviceId)
+
+        if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
+        if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
+        
+        const usage = await getUsageSeries(userId, range, deviceId)
+        res.json(usage)
+    } catch (err) {
+        console.error('Get usage series error:', err)
+        res.status(500).json({ error: 'Failed to fetch usage statistics' })
+    }
+})
+
+
+/**
+ * @swagger
+ * /devices/getMostUsedDevices:
+ *   get:
+ *     summary: Get top energy-consuming devices
+ *     description: Returns the most used devices for a user over a time range. Optional limit.
+ *     tags: [Devices]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *       - in: query
+ *         name: range
+ *         schema:
+ *           type: string
+ *           enum: [24h, 7d, 30d]
+ *         required: true
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *     responses:
+ *       200:
+ *         description: Most used devices returned.
+ *       400:
+ *         description: Missing or invalid parameters.
+ *       500:
+ *         description: Failed to fetch most used devices.
+ */
+router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
+    try {
+        const userId = getNumberQuery(req.query.userId)
+        const range = getStringQuery(req.query.range) as TimeRange
+        const limit = getNumberQuery(req.query.limit) ?? 5
+
+        if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
+        if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
+        
+        const devices = await getMostUsedDevices(userId, range, limit)
+        res.json(devices)
+    } catch (err) {
+        console.error('Get most used devices error:', err)
+        res.status(500).json({ error: 'Failed to fetch most used devices' })
     }
 })
 

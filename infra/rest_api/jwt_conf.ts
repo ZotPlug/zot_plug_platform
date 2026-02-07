@@ -22,7 +22,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
 		next()
 	})
 }
-
+ 
 
 export function craft_and_set_jwt(req: Request, res: Response): string {
 	const token = jwt.sign({}, SECRET_KEY ?? "", { expiresIn: "1h" })
@@ -33,7 +33,6 @@ export function craft_and_set_jwt(req: Request, res: Response): string {
 	// return so route can include it in JSON response for ease of testing
 	return token
 }
-
 
 export function verifyToken(token: string): boolean {
 	try {
