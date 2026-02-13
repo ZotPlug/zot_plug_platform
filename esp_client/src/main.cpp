@@ -2,6 +2,7 @@
 #include "./mqtt_config/mqtt_config.h"
 #include "./env_config/env_config.h"
 #include "./hardware_config/current_sensor/sensor.h"
+#include "./hardware_config/current_sensor/ic_sensor.h"
 #include "./hardware_config/relay/relay.h"
 #include "HardwareSerial.h"
 #include <WiFi.h>
@@ -14,7 +15,6 @@ const unsigned int ledPin_internal = 2;
 const unsigned int button_input = 25; 
 const unsigned int relayPin = 26;      // Pin connected to relay
 const unsigned int currentSensorPin = 34;
-const float CURRENT_CAL = 50.0f; // calibration for 50A:1V CT
 
 /* Global Flags */
 volatile boolean message_recieved = false;
@@ -26,6 +26,12 @@ unsigned int timeInterval = 0;
 constexpr unsigned int BUFFER_SIZE = 256;
 StaticJsonDocument<BUFFER_SIZE> doc;
 char buffer[BUFFER_SIZE];
+
+/* Metering Global Vars */
+double energyIncrement;
+int volts;
+double amps;
+double power;
 
 // When the server sends a message to this device. Via "client_subscribe_topic", decide what to do with it here.
 void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
@@ -49,19 +55,32 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
     }
 }
 
+void update_metering_vars_old(){ // Using old current sensor
+    energyIncrement  = get_and_reset_energy_total_old(SensorMode::test);
+    amps = get_current_reading(SensorMode::test);
+    power = volts * amps;
+    volts = get_voltage_reading(SensorMode::test);      
+}
+
+void update_metering_vars_ic() { 
+    //energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin);
+    energyIncrement = get_and_reset_energy_total_ic(SensorMode::test);
+    amps = get_current_amps();
+    power = get_active_power_watts();
+    volts = 120;
+}
+
 void send_device_reading() {
     if (millis() - lastSendingTime >= timeInterval) {
-        double energyIncrement  = get_and_reset_energy_total(SensorMode::test);
-        int volts  = get_voltage_reading(SensorMode::test);      
-        double amps   = get_current_reading(SensorMode::test);
-        double power_test_val = volts * amps;
-
+        //update_metering_vars_old();
+        update_metering_vars_ic();
+        
         // Allocate small JSON document (adjust only if you add many keys)
         doc["energyIncrement"] = energyIncrement;
         doc["voltage"] = volts;
         doc["current"] = amps;
         doc["deviceName"]  = env.cid;
-        doc["power"] = power_test_val;
+        doc["power"] = power;
 
         size_t len = serializeJson(doc, buffer);
 
@@ -95,9 +114,11 @@ void hardwareTask(void * parameter){
     /* ============================ */
 
     /* === current sensor setup === */
-    init_current_sensor(currentSensorPin, CURRENT_CAL);
-    timeInterval = one_minute * .25; // Set interval, in which you send power data to backend
+    //init_current_sensor_old(currentSensorPin);
+    init_current_sensor_ic(currentSensorPin);
     /* ============================================ */
+
+    timeInterval = one_minute * .25; // Set interval, in which you send power data to backend
 
     for(;;){
         /* === Testing Logic === */

@@ -3,6 +3,10 @@
 #include <EmonLib.h>
 EnergyMonitor emon1;
 
+#ifndef CURRENT_CAL 
+#define CURRENT_CAL 50.0f
+#endif
+
 unsigned long lastCurrentPrint = 0;
 
 const float V_LINE = 120.0;
@@ -12,13 +16,13 @@ double realPower;
 double energy_kWh = 0;
 unsigned long lastSampleTime = 0;
 
-void init_current_sensor(unsigned int currentSensorPin, float CURRENT_CAL){
+void init_current_sensor_old(unsigned int currentSensorPin){
 	analogSetPinAttenuation(currentSensorPin, ADC_11db);
 	analogReadResolution(12);
     	emon1.current(currentSensorPin, CURRENT_CAL);  // pin, calibration
 }
 
-void read_and_print_Irms(){
+void read_and_print_Irms_old(){
 	if (millis() - lastCurrentPrint >= 1000) {
             Irms = emon1.calcIrms(1480);
             Serial.print("Current (Irms): ");
@@ -62,7 +66,7 @@ void calculate_energy(SensorMode mode){
             Serial.println(energy_kWh, 9);
 }
 
-double get_and_reset_energy_total(SensorMode mode){
+double get_and_reset_energy_total_old(SensorMode mode){
         calculate_energy(mode);
         double temp = energy_kWh;
         energy_kWh = 0;
