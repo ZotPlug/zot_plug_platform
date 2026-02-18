@@ -11,8 +11,8 @@ services:
       - BROKER_HOST=broker 
       - API_HOST=api
     volumes:
-      - ${HOME}/docker-certs/certs/etc:/etc/letsencrypt
-      - ${HOME}/docker-certs/certs:/data/letsencrypt
+      - ~/docker-certs/certs/etc:/etc/letsencrypt
+      - ~/docker-certs/certs:/data/letsencrypt
     networks:
       - zotplug_net
     depends_on:
@@ -24,8 +24,8 @@ services:
     profiles: ["prod"]
     restart: unless-stopped
     volumes:
-      - ${HOME}/docker-certs/certs/etc:/etc/letsencrypt
-      - ${HOME}/docker-certs/certs:/data/letsencrypt
+      - ~/docker-certs/certs/etc:/etc/letsencrypt
+      - ~/docker-certs/certs:/data/letsencrypt
     networks:
       - zotplug_net
 
@@ -93,7 +93,7 @@ services:
       - PG_PASSWORD=mypassword
       - PG_DATABASE=mydb
     volumes:
-      - ${HOME}/pg_db/backups:/backups
+      - ~/pg_db/backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - zotplug_net
@@ -113,7 +113,7 @@ services:
     networks:
       - zotplug_net
     volumes:
-      - ${HOME}/pg_db/pgdata/:/var/lib/postgresql/data
+      - ~/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   postgres-dev:
