@@ -129,7 +129,7 @@ services:
     networks:
       - zotplug_net
     volumes:
-      - ~/pg_db/pgdata/:/var/lib/postgresql/data
+      - ${HOME}/pg_db/pgdata/:/var/lib/postgresql/data
       - ./pg_db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 networks:
