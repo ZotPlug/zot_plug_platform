@@ -620,7 +620,7 @@ router.get('/getUsageSeries', async (req: Request, res: Response) => {
 
         if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
         if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
-        
+
         const usage = await getUsageSeries(userId, range, deviceId)
         res.json(usage)
     } catch (err) {
@@ -670,7 +670,7 @@ router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
 
         if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
         if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
-        
+
         const devices = await getMostUsedDevices(userId, range, limit)
         res.json(devices)
     } catch (err) {
@@ -723,7 +723,7 @@ router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
 router.post('/addDevice', async (req: Request, res: Response) => {
     try {
         const { deviceName, userId } = req.body
-        if (!deviceName || !userId) return res.status(400).json({ error: 'Missing name or userId' })
+        if (deviceName === undefined || userId === undefined) return res.status(400).json({ error: 'Missing name or userId' })
 
         const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)

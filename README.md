@@ -96,7 +96,9 @@ Full-stack Infrastructure & Firmware for our ZotPlug smart plug system.
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:esp32 .
-arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 .
+
+arduino-cli upload --fqbn esp32:esp32:esp32 -p /dev/cu.usbserial-576D0499351 --upload-property upload.speed=460800 -v .
+
 arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 ```
 
