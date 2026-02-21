@@ -13,8 +13,8 @@
 const unsigned int ledPin_external = 14;
 const unsigned int ledPin_internal = 2;
 const unsigned int button_input = 25; 
-const unsigned int relayPin = 26;      // Pin connected to relay
-const unsigned int currentSensorPin = 34;
+const unsigned int relayPin = 33;      // Pin connected to relay
+const unsigned int currentSensorPin = 26;
 
 /* Global Flags */
 volatile boolean message_recieved = false;
@@ -63,8 +63,8 @@ void update_metering_vars_old(){ // Using old current sensor
 }
 
 void update_metering_vars_ic() { 
-    //energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin);
-    energyIncrement = get_and_reset_energy_total_ic(SensorMode::test);
+    energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin);
+    //energyIncrement = get_and_reset_energy_total_ic(SensorMode::test);
     amps = get_current_amps();
     power = get_active_power_watts();
     volts = 120;
