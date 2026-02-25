@@ -108,6 +108,5 @@ export type MostUsedDevice = {
 
 export type ResolvedRange = {
     interval: string,
-    bucket: string,
     periodType: 'daily'
 }

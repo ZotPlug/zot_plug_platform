@@ -12,7 +12,8 @@ async function aggregateDailyEnergy(date = new Date()) {
     dayStart.setHours(0, 0, 0, 0)
 
     const dayEnd = new Date(dayStart)
-    dayEnd.setHours(23, 59, 59, 999)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    dayEnd.setHours(0, 0, 0, 0)
 
     // console.log(`[AGG] Aggregating energy for ${dayStart.toDateString()}`)
     
@@ -36,7 +37,7 @@ async function aggregateDailyEnergy(date = new Date()) {
             NOW() AS updated_at
         FROM power_readings pr
         WHERE pr.recorded_at >= $1 
-            AND pr.recorded_at <= $2
+            AND pr.recorded_at < $2
         GROUP BY pr.device_id
         ON CONFLICT (device_id, period_type, period_start)
         DO UPDATE SET
@@ -59,5 +60,3 @@ aggregateDailyEnergy()
         await pool.end()
         process.exit(1)
     })
-
-
