@@ -299,10 +299,14 @@ export async function getUsageSeries(
                     -- Only include devices that belong to this user, active, and not deleted
                     JOIN user_device_map udm 
                         ON pr.device_id = udm.device_id
-                    WHERE udm.user_id = $1
-                        AND udm.status = 'active'                    
-                        -- Only look at last 24h of data
-                        AND pr.recorded_at >= NOW() - INTERVAL '24 hours'
+                        AND udm.user_id = $1
+                        AND udm.status = 'active'
+                    JOIN devices d
+                        ON d.id = pr.device_id
+                        AND d.is_deleted = FALSE
+                    
+                    -- Only look at last 24h of data
+                    WHERE pr.recorded_at >= NOW() - INTERVAL '24 hours'
                         -- Optional filter: single device
                         AND ($2::int IS NULL OR pr.device_id = $2)
                     GROUP BY bucket
@@ -344,9 +348,13 @@ export async function getUsageSeries(
                     -- Only include devices owned by this user, active, and not deleted
                     JOIN user_device_map udm
                         ON des.device_id = udm.device_id
-                    WHERE udm.user_id = $1
+                        AND udm.user_id = $1
                         AND udm.status = 'active'
-                        AND des.period_type = $2
+                    JOIN devices d
+                        ON d.id = des.device_id
+                        AND d.is_deleted = FALSE
+                    
+                    WHERE des.period_type = $2
                         -- Only include periods inside requested time window
                         AND des.period_start >= CURRENT_DATE - $3::interval
                         -- Optional filter: single device
@@ -397,12 +405,14 @@ export async function getMostUsedDevices(
                 -- Join device and user_device_map to filter only devices that belong to this user, active, and not deleted
                 JOIN devices d 
                     ON d.id = pr.device_id
+                    AND d.is_deleted = FALSE
                 JOIN user_device_map udm 
                     ON udm.device_id = d.id
-                WHERE udm.user_id = $1
-                    AND udm.status = 'active'                
-                    -- Only consider last 24h of readings
-                    AND pr.recorded_at >= NOW() - INTERVAL '24 hours'
+                    AND udm.user_id = $1
+                    AND udm.status = 'active'
+                
+                -- Only consider last 24h of readings
+                WHERE pr.recorded_at >= NOW() - INTERVAL '24 hours'
 
                 -- Compute total per device, highest energy first, and limit results (5)
                 GROUP BY d.id, d.name
@@ -426,12 +436,14 @@ export async function getMostUsedDevices(
                 -- Only include devices owned by this user, active, and not deleted
                 JOIN devices d 
                     ON d.id = des.device_id
+                    AND d.is_deleted = FALSE
                 JOIN user_device_map udm 
                     ON udm.device_id = d.id
-                WHERE udm.user_id = $1
+                    AND udm.user_id = $1
                     AND udm.status = 'active'
-                    -- Only include periods inside requested time window
-                    AND des.period_type = $2
+                
+                -- Only include periods inside requested time window
+                WHERE des.period_type = $2
                     AND des.period_start >= CURRENT_DATE - $3::interval
                 
                 -- Aggregate energy per device, highest first, and limit results (5)
