@@ -11,6 +11,7 @@ import {
     getReadingsInRange,
     getDevicePolicy,
     getFaultyDevices,
+    getUsageOverview,
     getUsageSeries,
     getMostUsedDevices,
     addDevice,
@@ -579,6 +580,22 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 //=========================================================
 // USAGE & STATISTICS ROUTES
 //=========================================================
+
+router.get('/getUsageOverview', async (req: Request, res: Response) => {
+    try {
+        const userId = getNumberQuery(req.query.userId)
+        const deviceId = getNumberQuery(req.query.deviceId)
+
+        if (!userId) return res.status(400).json({ error: 'Missing userId' })
+        
+        const overview = await getUsageOverview(userId, deviceId)
+        res.json(overview)
+    } catch (err) {
+        console.error('Get usage overview error:', err)
+        res.status(500).json({ error: 'Failed to fetch usage overview' })
+    }
+}) 
+
 
 /**
  * @swagger
