@@ -12,7 +12,7 @@
 /* Global Pin Config */
 const unsigned int ledPin_external = 14;
 const unsigned int ledPin_internal = 2;
-const unsigned int button_input = 25; 
+const unsigned int button_input = 27; 
 const unsigned int relayPin = 33;      // Pin connected to relay
 const unsigned int currentSensorPin = 26;
 
@@ -64,7 +64,6 @@ void update_metering_vars_old(){ // Using old current sensor
 
 void update_metering_vars_ic() { 
     energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin);
-    //energyIncrement = get_and_reset_energy_total_ic(SensorMode::test);
     amps = get_current_amps();
     power = get_active_power_watts();
     volts = 120;
@@ -111,6 +110,7 @@ void hardwareTask(void * parameter){
 
     /* === Relay + Serial setup === */
     init_relay(relayPin);
+    //turn_on_relay(relayPin);
     /* ============================ */
 
     /* === current sensor setup === */
@@ -118,12 +118,14 @@ void hardwareTask(void * parameter){
     init_current_sensor_ic(currentSensorPin);
     /* ============================================ */
 
-    timeInterval = one_minute * .25; // Set interval, in which you send power data to backend
+    //timeInterval = one_minute * .05; // Set interval, in which you send power data to backend
+    timeInterval = one_minute * .1; // Set interval, in which you send power data to backend
+
 
     for(;;){
         /* === Testing Logic === */
         if(digitalRead(button_input) == HIGH){
-            publish_message(env.pub.c_str(), "65w", 50);
+            publish_message(env.pub.c_str(), "65w", 3);
             digitalWrite(ledPin_internal , HIGH);
             vTaskDelay(500 / portTICK_PERIOD_MS);
             digitalWrite(ledPin_internal, LOW);
@@ -147,6 +149,6 @@ void hardwareTask(void * parameter){
         //read_and_print_Irms();
         send_device_reading();
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
+        //vTaskDelay(100 / portTICK_PERIOD_MS);  // Small delay to avoid busy looping
     }
 }

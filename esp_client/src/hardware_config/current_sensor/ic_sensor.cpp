@@ -1,6 +1,14 @@
 #include "sensor.h"
 #include <Arduino.h>
 
+static volatile uint32_t cf_pulses  = 0;
+static volatile uint32_t cf1_pulses = 0;
+static volatile uint32_t cf_last_edge_us  = 0;
+static volatile uint32_t cf1_last_edge_us = 0;
+
+static uint32_t g_last_window_ms = 0;   // last time we computed window Hz
+static constexpr uint32_t WINDOW_MS = 500; // 200–500ms is typical
+
 // setting the CF pin to pin 25, on main.cpp we need to change the CF1's pin to GPIO26
 // CF is the power pin
 #ifndef HLW8012_CF_PIN
@@ -9,11 +17,7 @@
 
 // this is for power calibration
 #ifndef POWER_CAL_W_PER_HZ
-#define POWER_CAL_W_PER_HZ 1.2f // !!!WILL NEED TO CHANGE THIS CALIBRATION VALUE AFTER TESTING!!!
-#endif
-
-#ifndef CURRENT_CAL 
-#define CURRENT_CAL 50.0f
+#define POWER_CAL_W_PER_HZ 0.0167f // !!!WILL NEED TO CHANGE THIS CALIBRATION VALUE AFTER TESTING!!!
 #endif
 
 //apparently old values keep repeating if there's no output frequency, so we make it so after this much time the output is set to 0
@@ -23,18 +27,12 @@ static constexpr uint32_t PULSE_TIMEOUT_US = 2000000UL; // 2 seconds in microsec
 static uint8_t g_cf1_pin = 0; //holds gpio number brought from main for CF1
 
 // setting calibration
-static float g_current_cal_a_per_hz = 0.003f; // !!!WILL NEED TO CHANGE THIS CALIBRATION VALUE AFTER TESTING!!! (Also I think we have to set the CURRENT_CAL = 0.003 on main.cpp
+static float g_current_cal_a_per_hz = 0.0166f; // !!!WILL NEED TO CHANGE THIS CALIBRATION VALUE AFTER TESTING!!! (Also I think we have to set the CURRENT_CAL = 0.003 on main.cpp
 static float g_power_cal_w_per_hz   = POWER_CAL_W_PER_HZ;
-
-// for pulse timings which will be used to find the period for power
-static volatile uint32_t cf_last_us       = 0;  // last pulse time (microseconds) *Chat note
-static volatile uint32_t cf_period_us     = 0;  // time between last two pulses *Chat note
-static volatile uint32_t cf_last_edge_us  = 0;  // time of most recent pulse edge *Chat note
 
 // for pulse timings which will be used to find the period for current
 static volatile uint32_t cf1_last_us      = 0;
 static volatile uint32_t cf1_period_us    = 0;
-static volatile uint32_t cf1_last_edge_us = 0;
 
 // these values will be printed once per second with this
 static unsigned long lastPrintMs = 0;
@@ -47,33 +45,15 @@ static double watts = 0.0;
 static double energy_kWh = 0.0;
 static unsigned long lastSampleTimeMs = 0;
 
-
-// amount of time that has run since ESP32 is on in microseconds
 static void IRAM_ATTR isr_cf() {
-    uint32_t now = (uint32_t) micros();
-
-    // If we've seen at least one pulse before, we can compute a period. *Chat note
-    if (cf_last_us != 0) {
-        cf_period_us = now - cf_last_us;   // Time between this pulse and last pulse *Chat note
-    }
-
-    // Save timestamps for next time *Chat note
-    cf_last_us = now;
-    cf_last_edge_us = now;
+    cf_pulses++;
+    cf_last_edge_us = (uint32_t)micros();
 }
 
-//pulses for current
 static void IRAM_ATTR isr_cf1() {
-    uint32_t now = (uint32_t) micros();
-
-    if (cf1_last_us != 0) {
-        cf1_period_us = now - cf1_last_us;
-    }
-
-    cf1_last_us = now;
-    cf1_last_edge_us = now;
+    cf1_pulses++;
+    cf1_last_edge_us = (uint32_t)micros();
 }
-
 /*
   !!! Chat's explanation for the period (essentially finding the period through time between pulses)
   HLW8012 gives pulses. We want frequency in Hz:
@@ -114,8 +94,6 @@ void init_current_sensor_ic(unsigned int currentSensorPin) {
     // main.cpp passes "currentSensorPin" — in HLW8012 mode this is CF1 pin *Chat note
     g_cf1_pin = (uint8_t) currentSensorPin;
 
-    g_current_cal_a_per_hz = CURRENT_CAL;
-
     // setting these pins as inputs
     pinMode(HLW8012_CF_PIN, INPUT);  // some boards might need INPUT_PULLUP
     pinMode(g_cf1_pin,      INPUT);
@@ -125,6 +103,45 @@ void init_current_sensor_ic(unsigned int currentSensorPin) {
     attachInterrupt(digitalPinToInterrupt(g_cf1_pin),      isr_cf1, RISING);
 }
 
+// Only keep if were not getting voltage from HLW8012
+static void refresh_measurements_from_window() {
+    uint32_t now_ms = millis();
+    if (g_last_window_ms == 0) {
+        g_last_window_ms = now_ms;
+        return;
+    }
+
+    uint32_t elapsed_ms = now_ms - g_last_window_ms;
+    if (elapsed_ms < WINDOW_MS) return;
+
+    // Atomically copy & reset counters
+    uint32_t p_cf, p_cf1;
+    uint32_t last_edge_cf_us, last_edge_cf1_us;
+
+    noInterrupts();
+    p_cf = cf_pulses;   cf_pulses = 0;
+    p_cf1 = cf1_pulses; cf1_pulses = 0;
+    last_edge_cf_us = cf_last_edge_us;
+    last_edge_cf1_us = cf1_last_edge_us;
+    interrupts();
+
+    g_last_window_ms = now_ms;
+
+    float seconds = elapsed_ms / 1000.0f;
+
+    // Timeout-to-zero if pulses have stopped recently
+    uint32_t now_us = (uint32_t)micros();
+    if ((now_us - last_edge_cf_us)  > PULSE_TIMEOUT_US)  p_cf = 0;
+    if ((now_us - last_edge_cf1_us) > PULSE_TIMEOUT_US) p_cf1 = 0;
+
+    float power_hz   = (seconds > 0.0f) ? (p_cf  / seconds) : 0.0f;
+    float current_hz = (seconds > 0.0f) ? (p_cf1 / seconds) : 0.0f;
+
+    watts = (double)(power_hz   * g_power_cal_w_per_hz);
+    amps  = (double)(current_hz * g_current_cal_a_per_hz);
+}
+
+/*
 void read_and_print_Irms_ic() {
     // Only print once per second *Chat note
     if (millis() - lastPrintMs < 1000) return;
@@ -145,6 +162,22 @@ void read_and_print_Irms_ic() {
     Serial.print(watts, 1);
     Serial.println(" W");
 }
+*/
+
+void read_and_print_Irms_ic() {
+    // Only print once per second
+    if (millis() - lastPrintMs < 1000) return;
+    lastPrintMs = millis();
+
+    // Update amps/watts using pulse counts in a window
+    refresh_measurements_from_window();
+
+    Serial.print("Current (RMS est): ");
+    Serial.print(amps, 3);
+    Serial.print(" A | Active Power est: ");
+    Serial.print(watts, 1);
+    Serial.println(" W");
+}
 
 double get_current_amps() {
     return amps;
@@ -154,18 +187,11 @@ double get_active_power_watts() {
     return watts;
 }
 
-// Only keep if were not getting voltage from HLW8012
-static void refresh_measurements_from_hz() {
-    float power_hz   = read_frequency_hz(cf_period_us,  cf_last_edge_us);
-    float current_hz = read_frequency_hz(cf1_period_us, cf1_last_edge_us);
 
-    watts = (double)(power_hz   * g_power_cal_w_per_hz);
-    amps  = (double)(current_hz * g_current_cal_a_per_hz);
-}
 
 static double get_power_reading_watts(SensorMode mode) {
     if (mode == SensorMode::pin) {
-        refresh_measurements_from_hz();
+        refresh_measurements_from_window();
         return watts;
     }
     // Fake mode for testing, similar spirit to your old random current
@@ -180,7 +206,7 @@ void calculate_energy_ic(SensorMode mode) {
     if (lastSampleTimeMs == 0) {
         lastSampleTimeMs = nowMs;
         // Still refresh once so watts/amps are not stale
-        if (mode == SensorMode::pin) refresh_measurements_from_hz();
+        if (mode == SensorMode::pin) refresh_measurements_from_window();
         return;
     }
 
