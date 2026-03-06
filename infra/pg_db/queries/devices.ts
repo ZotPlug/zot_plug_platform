@@ -35,27 +35,17 @@ async function requireDeviceId(
     return id
 }
 
-
+/**
+ * Resolves time range for 24h, 7d, and 30d. 
+ */
 function resolveRange(range: TimeRange): ResolvedRange {
     switch (range) {
         case '24h':
-            return {
-                interval: '24 hours',
-                bucket: 'hour',
-                periodType: 'daily',
-            }
+            return { interval: '24 hours', periodType: 'daily' }
         case '7d':
-            return {
-                interval: '7 days',
-                bucket: 'day',
-                periodType: 'daily',
-            }
+            return { interval: '7 days', periodType: 'daily' }
         case '30d':
-            return {
-                interval: '30 days',
-                bucket: 'day',
-                periodType: 'daily',
-            }
+            return { interval: '30 days', periodType: 'daily' }
         default: {
             const _exhaustive: never = range
             throw new Error(`Invalid time range: ${_exhaustive}`)
@@ -274,9 +264,9 @@ export async function getFaultyDevices(): Promise<any[]> {
 }
 
 /**
- * Fetch usage statistics for a user, optionally filtered by a single device. 
- * Supports 24h (hourly), 7d (daily), and 30d (daily) ranges.
- * Returns either individual device usage or total usage for all devices owned by the user. 
+ * Fetch time-series energy usage for a user's devices.
+ * For 24h: calculate hourly energy by taking the difference betwen max and min cumulative_energy within each hour (raw data).
+ * For 7d/30d: use pre-aggregated daily/weekly totals from device_energy_stats.
  */
 export async function getUsageSeries(
     userId: number,         // The user whos devices to query
@@ -284,40 +274,102 @@ export async function getUsageSeries(
     deviceId?: number       // Optional: narrow to a specific device
 ): Promise<UsageSeriesPoint[]> {
     try {
-        const { interval, bucket, periodType } = resolveRange(range)
-        const bucketSql =
-            bucket === 'hour' ? 'hour' :
-            bucket === 'day'  ? 'day'  :
-            'hour' // fallback
+        const { interval, periodType } = resolveRange(range)
 
         if (range === '24h') {
-            const { rows } = await pool.query(`
-                SELECT 
-                    DATE_TRUNC('${bucketSql}', pr.recorded_at) AS timestamp,
-                    AVG(pr.power) AS value
-                FROM power_readings pr
-                JOIN user_device_map udm ON pr.device_id = udm.device_id
-                WHERE udm.user_id = $1
-                    AND pr.recorded_at >= NOW() - $2::interval
-                    AND ($3::int IS NULL OR pr.device_id = $3)
-                GROUP BY timestamp
-                ORDER BY timestamp ASC
-            `, [userId, interval, deviceId ?? null])
+            const results = await pool.query(`
+                -- 1. Create 24 hourly time buckets, guarantees exactly 24 data points, even if no readings exist for some hours. 
+                WITH hours AS (
+                    SELECT generate_series(
+                        DATE_TRUNC('hour', NOW()) - INTERVAL '23 hours',        -- start of 24h range
+                        DATE_TRUNC('hour', NOW()),                              -- end of 24h range
+                        INTERVAL '1 hour'
+                    ) AS bucket
+                ),
 
-            return rows
-        } else {
+                -- 2. Calculate energy used per hour. 
+                -- Since devices store cumulative energy, we compute energy in each hour as: 
+                -- max(cumulative_energy) - min(cumulative_energy)
+                energy AS (
+                    SELECT
+                        DATE_TRUNC('hour', pr.recorded_at) AS bucket,
+                        MAX(pr.cumulative_energy) - MIN(pr.cumulative_energy) AS energy
+                    FROM power_readings pr
+                    
+                    -- Only include devices that belong to this user, active, and not deleted
+                    JOIN user_device_map udm 
+                        ON pr.device_id = udm.device_id
+                        AND udm.user_id = $1
+                        AND udm.status = 'active'
+                    JOIN devices d
+                        ON d.id = pr.device_id
+                        AND d.is_deleted = FALSE
+                    
+                    -- Only look at last 24h of data
+                    WHERE pr.recorded_at >= NOW() - INTERVAL '24 hours'
+                        -- Optional filter: single device
+                        AND ($2::int IS NULL OR pr.device_id = $2)
+                    GROUP BY bucket
+                )
+
+                -- 3. Left join computed energy onto full 24h buckets. 
+                -- If an hour has no readings, energy will be NULL, so we replace with 0 to avoid gaps in graph.
+                SELECT
+                    h.bucket AS timestamp,
+                    COALESCE(e.energy, 0) AS value
+                FROM hours h
+                LEFT JOIN energy e ON h.bucket = e.bucket
+                ORDER BY h.bucket ASC
+            `, [userId, deviceId ?? null])
+
+            return results.rows
+        } 
+        
+        else {
             const { rows } = await pool.query(`
-                SELECT 
-                    des.period_start::timestamp AS timestamp,
-                    SUM(des.total_energy) AS value
-                FROM device_energy_stats des
-                JOIN user_device_map udm ON des.device_id = udm.device_id
-                WHERE udm.user_id = $1
-                    AND des.period_type = $2
-                    AND des.period_start >= CURRENT_DATE -$3::interval
-                    AND ($4::int IS NULL OR des.device_id = $4)
-                GROUP BY des.period_start
-                ORDER BY des.period_start ASC
+                -- 1. Generate daily buckets (7 or 30 days)
+                WITH days AS (
+                    SELECT generate_series(
+                        CURRENT_DATE - $3::interval + INTERVAL '1 day',    -- start of range
+                        CURRENT_DATE,
+                        INTERVAL '1 day'
+                    ) AS bucket
+                ),
+
+                -- 2. Sum energy per day from pre-aggregated stats.
+                energy AS (
+                    SELECT 
+                        des.period_start AS bucket,
+
+                        -- If multiple devices are included, sum their energy usage per day
+                        SUM(des.total_energy) AS energy
+                    FROM device_energy_stats des
+
+                    -- Only include devices owned by this user, active, and not deleted
+                    JOIN user_device_map udm
+                        ON des.device_id = udm.device_id
+                        AND udm.user_id = $1
+                        AND udm.status = 'active'
+                    JOIN devices d
+                        ON d.id = des.device_id
+                        AND d.is_deleted = FALSE
+                    
+                    WHERE des.period_type = $2
+                        -- Only include periods inside requested time window
+                        AND des.period_start >= CURRENT_DATE - $3::interval
+                        -- Optional filter: single device
+                        AND ($4::int IS NULL OR des.device_id = $4)
+                    
+                    GROUP BY des.period_start
+                )
+                
+                -- 3. Left join to guarantee fixed number of buckets
+                SELECT
+                    d.bucket AS timestamp,
+                    COALESCE(e.energy, 0) AS value
+                FROM days d
+                LEFT JOIN energy e ON d.bucket = e.bucket
+                ORDER BY d.bucket ASC
             `, [userId, periodType, interval, deviceId ?? null])
 
             return rows
@@ -327,11 +379,12 @@ export async function getUsageSeries(
         console.error('Error fetching usage series:', err)
         throw err
     }
-}
+}                
 
 /**
- * Fetch the most used devices for a user over a specified time range.
- * Aggregates total energy per device and return the top N devices. 
+ * Fetch top energy-consuming devices for a user.
+ * For 24h: compute energy from raw cumulative readings. 
+ * For 7d/30d: sum pre-aggregated totals. 
  */
 export async function getMostUsedDevices(
     userId: number,             // Only count devices belonging to this user
@@ -340,23 +393,34 @@ export async function getMostUsedDevices(
 ): Promise<MostUsedDevice[]> {
     try {
         if (range === '24h') {
-            const { rows } = await pool.query(`
+            const results = await pool.query(`
                 SELECT 
                     d.id AS device_id,
                     d.name AS device_name,
+
+                    -- Calculate energy used in last 24h for each device as:
                     MAX(pr.cumulative_energy) - MIN(pr.cumulative_energy) AS total_energy
                 FROM power_readings pr
-                JOIN devices d ON d.id = pr.device_id
-                JOIN user_device_map udm ON udm.device_id = d.id
-                WHERE udm.user_id = $1
-                    AND pr.recorded_at >= NOW() - INTERVAL '24 hours'
+
+                -- Join device and user_device_map to filter only devices that belong to this user, active, and not deleted
+                JOIN devices d 
+                    ON d.id = pr.device_id
                     AND d.is_deleted = FALSE
+                JOIN user_device_map udm 
+                    ON udm.device_id = d.id
+                    AND udm.user_id = $1
+                    AND udm.status = 'active'
+                
+                -- Only consider last 24h of readings
+                WHERE pr.recorded_at >= NOW() - INTERVAL '24 hours'
+
+                -- Compute total per device, highest energy first, and limit results (5)
                 GROUP BY d.id, d.name
                 ORDER BY total_energy DESC
                 LIMIT $2
             `, [userId, limit])
 
-            return rows
+            return results.rows
         } else {
             const { interval, periodType } = resolveRange(range)
 
@@ -364,14 +428,25 @@ export async function getMostUsedDevices(
                 SELECT 
                     d.id AS device_id,
                     d.name AS device_name,
+
+                    -- Sum total energy across selected time window
                     SUM(des.total_energy) AS total_energy
                 FROM device_energy_stats des
-                JOIN devices d ON d.id = des.device_id
-                JOIN user_device_map udm ON udm.device_id = d.id
-                WHERE udm.user_id = $1
-                    AND des.period_type = $2
-                    AND des.period_start >= CURRENT_DATE - $3::interval
+
+                -- Only include devices owned by this user, active, and not deleted
+                JOIN devices d 
+                    ON d.id = des.device_id
                     AND d.is_deleted = FALSE
+                JOIN user_device_map udm 
+                    ON udm.device_id = d.id
+                    AND udm.user_id = $1
+                    AND udm.status = 'active'
+                
+                -- Only include periods inside requested time window
+                WHERE des.period_type = $2
+                    AND des.period_start >= CURRENT_DATE - $3::interval
+                
+                -- Aggregate energy per device, highest first, and limit results (5)
                 GROUP BY d.id, d.name
                 ORDER BY total_energy DESC
                 LIMIT $4
