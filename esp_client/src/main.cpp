@@ -18,6 +18,7 @@ const unsigned int currentSensorPin = 26;
 
 /* Global Flags */
 volatile boolean message_recieved = false;
+volatile boolean relay_on = false;
 
 /* General Global Vars */
 const unsigned int one_minute = 60000;
@@ -40,9 +41,11 @@ void fn_on_message_received(char* topic, byte* payload, unsigned int length ){
         if (strcmp(slash + 1, "cmd/relay/on") == 0){
             Serial.println("Relay On");
             turn_on_relay(relayPin);
+            relay_on = true;
         } else if (strcmp(slash + 1, "cmd/relay/off") == 0){
             turn_off_relay(relayPin);
             Serial.println("Relay off");
+            relay_on = false;
         }
 
         Serial.println("Message received");
@@ -63,9 +66,9 @@ void update_metering_vars_old(){ // Using old current sensor
 }
 
 void update_metering_vars_ic() { 
-    energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin);
-    amps = get_current_amps();
-    power = get_active_power_watts();
+    energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin, relay_on);
+    amps = get_current_amps(relay_on);
+    power = get_active_power_watts(relay_on);
     volts = 120;
 }
 

@@ -179,11 +179,17 @@ void read_and_print_Irms_ic() {
     Serial.println(" W");
 }
 
-double get_current_amps() {
+double get_current_amps(bool relay_on) {
+    if (relay_on == false){
+        return 0;
+    }
     return amps;
 }
 
-double get_active_power_watts() {
+double get_active_power_watts(bool relay_on) {
+    if (relay_on == false){
+        return 0;
+    }
     return watts;
 }
 
@@ -229,11 +235,18 @@ void calculate_energy_ic(SensorMode mode) {
     Serial.println(energy_kWh, 9);
 }
 
-double get_and_reset_energy_total_ic(SensorMode mode) {
-    calculate_energy_ic(mode);
-    double temp = energy_kWh;
-    energy_kWh = 0.0;
-    return temp;
+double get_and_reset_energy_total_ic(SensorMode mode, bool relay_on) {
+    if(!relay_on){
+        calculate_energy_ic(mode);
+        double temp = energy_kWh;
+        energy_kWh = 0.0;
+        return temp;
+    } else {
+        amps  = 0.0;
+        watts = 0.0;
+        energy_kWh = 0.0;
+        return energy_kWh;
+    }
 }
 
 
