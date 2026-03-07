@@ -30,10 +30,6 @@ static uint8_t g_cf1_pin = 0; //holds gpio number brought from main for CF1
 static float g_current_cal_a_per_hz = 0.0166f; // !!!WILL NEED TO CHANGE THIS CALIBRATION VALUE AFTER TESTING!!! (Also I think we have to set the CURRENT_CAL = 0.003 on main.cpp
 static float g_power_cal_w_per_hz   = POWER_CAL_W_PER_HZ;
 
-// for pulse timings which will be used to find the period for current
-static volatile uint32_t cf1_last_us      = 0;
-static volatile uint32_t cf1_period_us    = 0;
-
 // these values will be printed once per second with this
 static unsigned long lastPrintMs = 0;
 
@@ -44,6 +40,87 @@ static double watts = 0.0;
 // Energy accumulations
 static double energy_kWh = 0.0;
 static unsigned long lastSampleTimeMs = 0;
+
+struct RelativeCurrentCalBand {
+    double max_ratio_to_first;
+    double scale;
+    double offset;
+};
+
+static RelativeCurrentCalBand g_relative_bands[] = {
+    {1.25, 1.00, 0.00},
+    {2.00, 0.96, 0.00},
+    {3.00, 0.91, 0.00},
+    {4.00, 0.87, 0.00},
+    {999.0, 0.83, 0.00}
+};
+
+static double raw_amps  = 0.0;
+static double raw_watts = 0.0;
+
+static bool g_prev_relay_on = false;
+static unsigned long g_relay_on_ms = 0;
+
+static bool g_baseline_captured = false;
+static double g_first_avg_amps = 0.0;
+static double g_baseline_sum = 0.0;
+static int g_baseline_count = 0;
+
+static constexpr double BASELINE_MIN_AMPS = 0.08;
+static constexpr uint32_t BASELINE_SETTLE_MS = 1000;
+static constexpr int BASELINE_SAMPLES_NEEDED = 3;
+
+static double g_dynamic_strength = 1.0;
+
+static void update_relay_calibration_state(bool relay_on) {
+    if (relay_on && !g_prev_relay_on) {
+        g_relay_on_ms = millis();
+        g_baseline_captured = false;
+        g_first_avg_amps = 0.0;
+        g_baseline_sum = 0.0;
+        g_baseline_count = 0;
+    }
+
+    if (!relay_on) {
+        g_baseline_captured = false;
+        g_first_avg_amps = 0.0;
+        g_baseline_sum = 0.0;
+        g_baseline_count = 0;
+    }
+
+    g_prev_relay_on = relay_on;
+}
+
+static void try_capture_first_baseline(bool relay_on, double current_raw_amps) {
+    if (!relay_on) return;
+    if (g_baseline_captured) return;
+    if (millis() - g_relay_on_ms < BASELINE_SETTLE_MS) return;
+    if (current_raw_amps < BASELINE_MIN_AMPS) return;
+
+    g_baseline_sum += current_raw_amps;
+    g_baseline_count++;
+
+    if (g_baseline_count >= BASELINE_SAMPLES_NEEDED) {
+        g_first_avg_amps = g_baseline_sum / (double)g_baseline_count;
+        g_baseline_captured = true;
+    }
+}
+
+static double apply_dynamic_current_calibration(double current_raw_amps) {
+    if (current_raw_amps <= 0.0) return 0.0;
+    if (!g_baseline_captured || g_first_avg_amps <= 0.0) return current_raw_amps;
+
+    double ratio = current_raw_amps / g_first_avg_amps;
+
+    for (const auto &band : g_relative_bands) {
+        if (ratio <= band.max_ratio_to_first) {
+            double corrected = (current_raw_amps * band.scale) + band.offset;
+            return current_raw_amps + (corrected - current_raw_amps) * g_dynamic_strength;
+        }
+    }
+
+    return current_raw_amps;
+}
 
 static void IRAM_ATTR isr_cf() {
     cf_pulses++;
@@ -104,17 +181,16 @@ void init_current_sensor_ic(unsigned int currentSensorPin) {
 }
 
 // Only keep if were not getting voltage from HLW8012
-static void refresh_measurements_from_window() {
+static bool refresh_measurements_from_window() {
     uint32_t now_ms = millis();
     if (g_last_window_ms == 0) {
         g_last_window_ms = now_ms;
-        return;
+        return false;
     }
 
     uint32_t elapsed_ms = now_ms - g_last_window_ms;
-    if (elapsed_ms < WINDOW_MS) return;
+    if (elapsed_ms < WINDOW_MS) return false;
 
-    // Atomically copy & reset counters
     uint32_t p_cf, p_cf1;
     uint32_t last_edge_cf_us, last_edge_cf1_us;
 
@@ -129,18 +205,21 @@ static void refresh_measurements_from_window() {
 
     float seconds = elapsed_ms / 1000.0f;
 
-    // Timeout-to-zero if pulses have stopped recently
     uint32_t now_us = (uint32_t)micros();
-    if ((now_us - last_edge_cf_us)  > PULSE_TIMEOUT_US)  p_cf = 0;
+    if ((now_us - last_edge_cf_us)  > PULSE_TIMEOUT_US) p_cf = 0;
     if ((now_us - last_edge_cf1_us) > PULSE_TIMEOUT_US) p_cf1 = 0;
 
     float power_hz   = (seconds > 0.0f) ? (p_cf  / seconds) : 0.0f;
     float current_hz = (seconds > 0.0f) ? (p_cf1 / seconds) : 0.0f;
 
-    watts = (double)(power_hz   * g_power_cal_w_per_hz);
-    amps  = (double)(current_hz * g_current_cal_a_per_hz);
-}
+    raw_watts = (double)(power_hz   * g_power_cal_w_per_hz);
+    raw_amps  = (double)(current_hz * g_current_cal_a_per_hz);
 
+    amps  = apply_dynamic_current_calibration(raw_amps);
+    watts = raw_watts;
+
+    return true;
+}
 /*
 void read_and_print_Irms_ic() {
     // Only print once per second *Chat note
@@ -165,35 +244,58 @@ void read_and_print_Irms_ic() {
 */
 
 void read_and_print_Irms_ic() {
-    // Only print once per second
     if (millis() - lastPrintMs < 1000) return;
     lastPrintMs = millis();
 
-    // Update amps/watts using pulse counts in a window
     refresh_measurements_from_window();
 
-    Serial.print("Current (RMS est): ");
+    Serial.print("Raw Current: ");
+    Serial.print(raw_amps, 3);
+    Serial.print(" A | Corrected Current: ");
     Serial.print(amps, 3);
-    Serial.print(" A | Active Power est: ");
+    Serial.print(" A | Active Power: ");
     Serial.print(watts, 1);
-    Serial.println(" W");
+    Serial.print(" W | Baseline: ");
+    Serial.println(g_first_avg_amps, 3);
 }
 
 double get_current_amps(bool relay_on) {
-    if (relay_on == false){
-        return 0;
+    update_relay_calibration_state(relay_on);
+
+    if (!relay_on) {
+        raw_amps = 0.0;
+        raw_watts = 0.0;
+        amps = 0.0;
+        watts = 0.0;
+        return 0.0;
     }
+
+    bool updated = refresh_measurements_from_window();
+    if (updated) {
+        try_capture_first_baseline(relay_on, raw_amps);
+    }
+
     return amps;
 }
 
 double get_active_power_watts(bool relay_on) {
-    if (relay_on == false){
-        return 0;
+    update_relay_calibration_state(relay_on);
+
+   if (!relay_on) {
+        raw_amps = 0.0;
+        raw_watts = 0.0;
+        amps = 0.0;
+        watts = 0.0;
+        return 0.0;
     }
+
+    bool updated = refresh_measurements_from_window();
+    if(updated){
+        try_capture_first_baseline(relay_on, raw_amps);
+    }
+
     return watts;
 }
-
-
 
 static double get_power_reading_watts(SensorMode mode) {
     if (mode == SensorMode::pin) {
@@ -236,7 +338,7 @@ void calculate_energy_ic(SensorMode mode) {
 }
 
 double get_and_reset_energy_total_ic(SensorMode mode, bool relay_on) {
-    if(!relay_on){
+    if(relay_on){
         calculate_energy_ic(mode);
         double temp = energy_kWh;
         energy_kWh = 0.0;

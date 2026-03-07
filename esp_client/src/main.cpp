@@ -69,7 +69,7 @@ void update_metering_vars_ic() {
     energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin, relay_on);
     amps = get_current_amps(relay_on);
     power = get_active_power_watts(relay_on);
-    volts = 120;
+    volts = 12;
 }
 
 void send_device_reading() {
