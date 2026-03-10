@@ -581,6 +581,48 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 // USAGE & STATISTICS ROUTES
 //=========================================================
 
+/**
+ * @swagger
+ * /devices/getUsageOverview:
+ *   get:
+ *     summary: Get total energy usage overview
+ *     description: Returns total energy usage across all of a user's devices for the last 24h, 7d, and 30d periods. Optionally filtered by a specific device.
+ *     tags: [Devices]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the user.
+ *       - in: query
+ *         name: deviceId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Optional device ID to filter results.
+ *     responses:
+ *       200:
+ *         description: Usage overview returned successfully.
+ *         content: 
+ *           application/json: 
+ *              schema: 
+ *                  type: object
+ *                  properties:
+ *                      daily: 
+ *                          type: number
+ *                          example: 8.32
+ *                      weekly: 
+ *                          type: number
+ *                          example: 54.19
+ *                      monthly: 
+ *                          type: number
+ *                          example: 214.87
+ *       400:
+ *         description: Missing or invalid parameters.
+ *       500:
+ *         description: Failed to fetch usage overview.
+ */
 router.get('/getUsageOverview', async (req: Request, res: Response) => {
     try {
         const userId = getNumberQuery(req.query.userId)

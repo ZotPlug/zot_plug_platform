@@ -54,71 +54,6 @@ function resolveRange(range: TimeRange): ResolvedRange {
     }
 }
 
-async function fetchTotalEnergyForRange(
-    userId: number,
-    range: TimeRange,
-    deviceId?: number
-): Promise<number> {
-    try {
-        if (range === '24h') {
-            const { rows } = await pool.query(`
-                SELECT 
-                    COALESCE(SUM(device_energy), 0) AS total
-                FROM (
-                    SELECT
-                        pr.device_id,
-                        MAX(pr.cumulative_energy) - MIN(pr.cumulative_energy) AS device_energy
-                    FROM power_readings pr
-
-                    JOIN user_device_map udm
-                        ON pr.device_id = udm.device_id
-                        AND udm.user_id = $1
-                        AND udm.status = 'active'
-                    
-                    JOIN devices d
-                        ON d.id = pr.device_id
-                        AND d.is_deleted = FALSE
-                    
-                    WHERE pr.recorded_at >= NOW() - INTERVAL '24 hours'
-                        AND ($2::int IS NULL OR pr.device_id = $2)
-
-                    GROUP BY pr.device_id
-                ) sub
-            `, [userId, deviceId ?? null])
-
-            return Number(rows[0].total)
-        } 
-
-        else {
-            const { interval, periodType } = resolveRange(range)
-
-            const { rows } = await pool.query(`
-                SELECT 
-                    COALESCE(SUM(des.total_energy), 0) AS total
-                FROM device_energy_stats des
-
-                JOIN user_device_map udm
-                    ON des.device_id = udm.device_id
-                    AND udm.user_id = $1
-                    AND udm.status = 'active'
-                
-                JOIN devices d
-                    ON d.id = des.device_id
-                    AND d.is_deleted = FALSE
-                
-                WHERE des.period_type = $2
-                    AND des.period_start >= CURRENT_DATE - $3::interval
-                    AND ($4::int IS NULL OR des.device_id = $4)
-            `, [userId, periodType, interval, deviceId ?? null])
-
-            return Number(rows[0].total)
-        }
-    } catch (err) {
-        console.error('Error fetching total energy for range:', err)
-        throw err
-    }
-}
-
 //=========================================================
 // READ
 //=========================================================
@@ -334,16 +269,42 @@ export async function getUsageOverview(
     deviceId?: number
 ): Promise<UsageOverview> {
     try {
-        const [daily, weekly, monthly] = await Promise.all([
-            fetchTotalEnergyForRange(userId, '24h', deviceId),
-            fetchTotalEnergyForRange(userId, '7d', deviceId),
-            fetchTotalEnergyForRange(userId, '30d', deviceId)
-        ])
+        const { rows } = await pool.query(`
+            SELECT 
+                COALESCE(SUM(CASE
+                    WHEN des.period_start = CURRENT_DATE THEN des.total_energy
+                    ELSE 0
+                END), 0) AS daily,
+                
+                COALESCE(SUM(CASE
+                    WHEN des.period_start >= CURRENT_DATE - INTERVAL '7 days' THEN des.total_energy
+                    ELSE 0
+                END), 0) AS weekly,
+
+                COALESCE(SUM(CASE
+                    WHEN des.period_start >= CURRENT_DATE - INTERVAL '30 days' THEN des.total_energy
+                    ELSE 0
+                END), 0) AS monthly
+            
+            FROM device_energy_stats des
+
+            JOIN user_device_map udm
+                ON des.device_id = udm.device_id
+                AND udm.user_id = $1
+                AND udm.status = 'active'
+                
+            JOIN devices d
+                ON d.id = des.device_id
+                AND d.is_deleted = FALSE
+                
+            WHERE des.period_type = 'daily'
+                AND ($2::int IS NULL OR des.device_id = $2)
+        `, [userId, deviceId ?? null])
 
         return {
-            daily,
-            weekly,
-            monthly
+            daily: Number(rows[0].daily),
+            weekly: Number(rows[0].weekly),
+            monthly: Number(rows[0].monthly)
         }
     } catch (err) {
         console.error('Error fetching usage overview:', err)
