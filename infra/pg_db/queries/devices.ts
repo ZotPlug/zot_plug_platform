@@ -264,6 +264,14 @@ export async function getFaultyDevices(): Promise<any[]> {
     }
 }
 
+/**
+ * Fetch aggregate energy usage for a user's devices.
+ * - daily: sum of all energy for the MOST RECENT completed day (uses MAX(period_start) to ensure a value is returned even if today has no data yet).
+ * - weekly/monthly: sum of daily totals from the last 7 or 30 days relative to CURRENT_DATE.
+ * - Optional deviceId parameter filters to a single device; otherwise sums across all active devices for the user.
+ * 
+ * Note: Uses pre-aggregated daily totals from device_energy_stats, not raw hourly readings.
+ */
 export async function getUsageOverview(
     userId: number,
     deviceId?: number
@@ -271,20 +279,23 @@ export async function getUsageOverview(
     try {
         const { rows } = await pool.query(`
             SELECT 
-                COALESCE(SUM(CASE
-                    WHEN des.period_start = CURRENT_DATE THEN des.total_energy
-                    ELSE 0
-                END), 0) AS daily,
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start = (SELECT MAX(period_start) FROM device_energy_stats)),
+                    0
+                ) AS daily,
                 
-                COALESCE(SUM(CASE
-                    WHEN des.period_start >= CURRENT_DATE - INTERVAL '7 days' THEN des.total_energy
-                    ELSE 0
-                END), 0) AS weekly,
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start >= CURRENT_DATE - INTERVAL '7 days'),
+                    0
+                ) AS weekly,
 
-                COALESCE(SUM(CASE
-                    WHEN des.period_start >= CURRENT_DATE - INTERVAL '30 days' THEN des.total_energy
-                    ELSE 0
-                END), 0) AS monthly
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start >= CURRENT_DATE - INTERVAL '30 days'),
+                    0
+                ) AS monthly
             
             FROM device_energy_stats des
 
@@ -298,7 +309,7 @@ export async function getUsageOverview(
                 AND d.is_deleted = FALSE
                 
             WHERE des.period_type = 'daily'
-                AND ($2::int IS NULL OR des.device_id = $2)
+            AND ($2::int IS NULL OR des.device_id = $2)
         `, [userId, deviceId ?? null])
 
         return {
