@@ -11,7 +11,8 @@ import {
     TimeRange,
     UsageSeriesPoint,
     MostUsedDevice,
-    ResolvedRange
+    ResolvedRange,
+    UsageOverview
 } from "./types/types";
 import { resolveDeviceId } from "./deviceResolver";
 import { Buffer } from "buffer";
@@ -262,6 +263,66 @@ export async function getFaultyDevices(): Promise<any[]> {
         throw err
     }
 }
+
+/**
+ * Fetch aggregate energy usage for a user's devices.
+ * - daily: sum of all energy for the MOST RECENT completed day (uses MAX(period_start) to ensure a value is returned even if today has no data yet).
+ * - weekly/monthly: sum of daily totals from the last 7 or 30 days relative to CURRENT_DATE.
+ * - Optional deviceId parameter filters to a single device; otherwise sums across all active devices for the user.
+ * 
+ * Note: Uses pre-aggregated daily totals from device_energy_stats, not raw hourly readings.
+ */
+export async function getUsageOverview(
+    userId: number,
+    deviceId?: number
+): Promise<UsageOverview> {
+    try {
+        const { rows } = await pool.query(`
+            SELECT 
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start = (SELECT MAX(period_start) FROM device_energy_stats)),
+                    0
+                ) AS daily,
+                
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start >= CURRENT_DATE - INTERVAL '7 days'),
+                    0
+                ) AS weekly,
+
+                COALESCE(
+                    SUM(des.total_energy)
+                    FILTER (WHERE des.period_start >= CURRENT_DATE - INTERVAL '30 days'),
+                    0
+                ) AS monthly
+            
+            FROM device_energy_stats des
+
+            JOIN user_device_map udm
+                ON des.device_id = udm.device_id
+                AND udm.user_id = $1
+                AND udm.status = 'active'
+                
+            JOIN devices d
+                ON d.id = des.device_id
+                AND d.is_deleted = FALSE
+                
+            WHERE des.period_type = 'daily'
+            AND ($2::int IS NULL OR des.device_id = $2)
+        `, [userId, deviceId ?? null])
+
+        return {
+            daily: Number(rows[0].daily),
+            weekly: Number(rows[0].weekly),
+            monthly: Number(rows[0].monthly)
+        }
+    } catch (err) {
+        console.error('Error fetching usage overview:', err)
+        throw err
+    }
+}
+
 
 /**
  * Fetch time-series energy usage for a user's devices.
