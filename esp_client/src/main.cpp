@@ -69,7 +69,7 @@ void update_metering_vars_ic() {
     energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin, relay_on);
     amps = get_current_amps(relay_on);
     //power = get_active_power_watts(relay_on);
-    volts = 12;
+    volts = relay_on ? 12 : 0;
     power = volts * amps;
 }
 
@@ -114,7 +114,8 @@ void hardwareTask(void * parameter){
 
     /* === Relay + Serial setup === */
     init_relay(relayPin);
-    //turn_on_relay(relayPin);
+    turn_on_relay(relayPin);
+    relay_on = true;
     /* ============================ */
 
     /* === current sensor setup === */
