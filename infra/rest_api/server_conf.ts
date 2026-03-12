@@ -8,7 +8,7 @@ const INTERNAL_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1']
 
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000,
-	max: 100,
+	max: 200,
 	standardHeaders: true,
 	legacyHeaders: false,
 	skip: (req) => INTERNAL_IPS.includes(req.ip ?? ""),

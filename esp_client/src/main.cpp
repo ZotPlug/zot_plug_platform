@@ -68,8 +68,9 @@ void update_metering_vars_old(){ // Using old current sensor
 void update_metering_vars_ic() { 
     energyIncrement = get_and_reset_energy_total_ic(SensorMode::pin, relay_on);
     amps = get_current_amps(relay_on);
-    power = get_active_power_watts(relay_on);
+    //power = get_active_power_watts(relay_on);
     volts = 12;
+    power = volts * amps;
 }
 
 void send_device_reading() {
@@ -121,8 +122,8 @@ void hardwareTask(void * parameter){
     init_current_sensor_ic(currentSensorPin);
     /* ============================================ */
 
-    //timeInterval = one_minute * .05; // Set interval, in which you send power data to backend
-    timeInterval = one_minute * .1; // Set interval, in which you send power data to backend
+    timeInterval = one_minute * .05; // Set interval, in which you send power data to backend
+    //timeInterval = one_minute * .1; // Set interval, in which you send power data to backend
 
 
     for(;;){
