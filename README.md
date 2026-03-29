@@ -28,19 +28,23 @@ Ultimately, we showed that ZotPlug can provide reliable outlet-level energy moni
 
 #### Infrastructure
 ![Infra Diagram](./images/infra.jpg)
+
 The system consists of a user-friendly web and mobile interface, a scalable cloud infrastructure, and server logic that allows ZotPlug devices to communicate with the backend server over MQTT.
 
 #### Authentication Provision
 ![Provision Workflow](./images/auth_provision.jpg)
+
 Here is a breakdown of the authentication communication process for web and mobile users.
 
 ## Database
 ![Database](./images/database.png)
+
 Here is an ER diagram of our server database. Users are mapped to ZotPlug devices and can interact with them in various ways.
 
 ### Hardware
 
 ![Hardware Schematic](./images/phase2_schematic.png)
+
 Our finalized circuit schematic utilized an ESP32, a dedicated metering IC, and a relay switch. This design served as the basis for our perfboard and PCB implementations.
 
 ## Development
