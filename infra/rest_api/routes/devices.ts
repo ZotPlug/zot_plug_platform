@@ -11,6 +11,7 @@ import {
     getReadingsInRange,
     getDevicePolicy,
     getFaultyDevices,
+    getUsageOverview,
     getUsageSeries,
     getMostUsedDevices,
     addDevice,
@@ -582,6 +583,64 @@ router.get('/getFaultyDevices', async (_req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /devices/getUsageOverview:
+ *   get:
+ *     summary: Get total energy usage overview
+ *     description: Returns total energy usage across all of a user's devices for the last 24h, 7d, and 30d periods. Optionally filtered by a specific device.
+ *     tags: [Devices]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the user.
+ *       - in: query
+ *         name: deviceId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Optional device ID to filter results.
+ *     responses:
+ *       200:
+ *         description: Usage overview returned successfully.
+ *         content: 
+ *           application/json: 
+ *              schema: 
+ *                  type: object
+ *                  properties:
+ *                      daily: 
+ *                          type: number
+ *                          example: 8.32
+ *                      weekly: 
+ *                          type: number
+ *                          example: 54.19
+ *                      monthly: 
+ *                          type: number
+ *                          example: 214.87
+ *       400:
+ *         description: Missing or invalid parameters.
+ *       500:
+ *         description: Failed to fetch usage overview.
+ */
+router.get('/getUsageOverview', async (req: Request, res: Response) => {
+    try {
+        const userId = getNumberQuery(req.query.userId)
+        const deviceId = getNumberQuery(req.query.deviceId)
+
+        if (!userId) return res.status(400).json({ error: 'Missing userId' })
+        
+        const overview = await getUsageOverview(userId, deviceId)
+        res.json(overview)
+    } catch (err) {
+        console.error('Get usage overview error:', err)
+        res.status(500).json({ error: 'Failed to fetch usage overview' })
+    }
+}) 
+
+
+/**
+ * @swagger
  * /devices/getUsageSeries:
  *   get:
  *     summary: Get usage statistics for a user's devices
@@ -620,7 +679,7 @@ router.get('/getUsageSeries', async (req: Request, res: Response) => {
 
         if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
         if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
-        
+
         const usage = await getUsageSeries(userId, range, deviceId)
         res.json(usage)
     } catch (err) {
@@ -670,7 +729,7 @@ router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
 
         if (!userId || !range) return res.status(400).json({ error: 'Missing userId or range' })
         if (!['24h', '7d', '30d'].includes(range)) return res.status(400).json({ error: 'Invalid range' })
-        
+
         const devices = await getMostUsedDevices(userId, range, limit)
         res.json(devices)
     } catch (err) {
@@ -723,7 +782,7 @@ router.get('/getMostUsedDevices', async (req: Request, res: Response) => {
 router.post('/addDevice', async (req: Request, res: Response) => {
     try {
         const { deviceName, userId } = req.body
-        if (!deviceName || !userId) return res.status(400).json({ error: 'Missing name or userId' })
+        if (deviceName === undefined || userId === undefined) return res.status(400).json({ error: 'Missing name or userId' })
 
         const device = await addDevice({ deviceName, userId })
         res.status(201).json(device)

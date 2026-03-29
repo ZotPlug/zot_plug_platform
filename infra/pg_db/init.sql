@@ -319,6 +319,8 @@ CREATE INDEX idx_users_active ON users(id)
   WHERE is_deleted = FALSE;                                                  -- Filter for active (non-deleted) users
 CREATE INDEX idx_auth_last_pw_change 
   ON auth_credentials(last_password_change);                                 -- Track recent password change events
+CREATE UNIQUE INDEX idx_auth_user_id 
+  ON auth_credentials(user_id);
 
 -- =========================================================
 -- DEVICES & DEVICE CREDENTIALS
@@ -330,14 +332,15 @@ CREATE INDEX idx_devices_active
   WHERE is_deleted = FALSE;                                                  -- Filter for active devices (ignores deleted)
 CREATE INDEX idx_device_last_seen 
   ON devices(last_seen);                                                     -- Useful for listing recently active devices
+CREATE UNIQUE INDEX idx_device_roles_role
+  ON device_roles(role);
 
 -- =========================================================
 -- USER–DEVICE RELATIONSHIPS
 -- =========================================================
-CREATE INDEX idx_user_device_map_user_id 
-  ON user_device_map(user_id);                                               -- Find all devices linked to a user
-CREATE INDEX idx_user_device_map_device_id 
-  ON user_device_map(device_id);                                             -- Find all users linked to a device
+CREATE INDEX idx_udm_user_device_active
+  ON user_device_map(user_id, device_id)
+  WHERE status = 'active';
 
 -- =========================================================
 -- TOPIC PERMISSIONS
@@ -371,8 +374,8 @@ CREATE INDEX idx_power_device_time_energy
 -- =========================================================
 CREATE UNIQUE INDEX idx_energy_device_period 
   ON device_energy_stats(device_id, period_type, period_start);              -- Ensure one record per device per period
-CREATE INDEX idx_energy_period_start 
-  ON device_energy_stats(period_start);                                      -- Filter/aggregate by date range
+CREATE INDEX idx_energy_period_type_start
+  ON device_energy_stats(period_type, period_start);
 
 -- =========================================================
 -- DEVICE POLICIES

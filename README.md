@@ -36,7 +36,7 @@ The system consists of a user-friendly web and mobile interface, a scalable clou
 
 Here is a breakdown of the authentication communication process for web and mobile users.
 
-## Database
+#### Database
 ![Database](./images/database.png)
 
 Here is an ER diagram of our server database. Users are mapped to ZotPlug devices and can interact with them in various ways.
