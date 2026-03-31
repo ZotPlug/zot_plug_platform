@@ -1,127 +1,51 @@
-# ZotPlug Firmware
+# Welcome to ZotPlug
 
-Full-stack Infrastructure & Firmware for our ZotPlug smart plug system. 
+![ZotPlug Backend](./images/readme_backend.jpg)
 
+Welcome to ZotPlug! This is the server infrastructure and firmware for our smart plug IoT solution. 
 
-## 💻⚙️Software Development Workflow
+## Project Poster & Technical Report
 
-### **Pre-requisites**  
-1. Install **Docker**
-   [Follow the official instructions for your platform](https://docs.docker.com/engine/install/#supported-platforms)
+![ZotPlug Poster](./images/EECS%20159B%20-%20Final%20Project%20Poster.jpg)
 
-### **Dev-Steps**  
-1. **Navigate to the backend infrastructure directory**
-   ```bash
-   cd ./zot_plug_platform/infra
-   ```
-2. **Create a .env file, with the following:**
-   ```bash
-   PG_HOST=postgres-dev
-   PG_PORT=5432
-   PG_USER=myuser
-   PG_PASSWORD=mypassword
-   PG_DATABASE=mydb
-   MQTT_URL=mqtt://broker:1883
-   SIGNING_KEY=super_duper_secret
-   ```
-3. **Start the development stack**
-   Run with the `dev` profile to launch only development-specific containers:
+- The full resolution PDF version of the project poster can be found [here](https://drive.google.com/file/d/1YAu_NmLsX2b73EIh_0wYKdVRCQuiZaFI/view?usp=sharing).
+- The technical report for this project can be found [here](https://drive.google.com/file/d/1xXkfRifxrVSe8xIGHvAEyg9sbYb6Ol6m/view?usp=drive_link).
 
-   ```bash
-   docker compose --profile dev up
-   ```
-   > This will start services like `api-dev`, `postgres`, and any other containers tagged with `profiles: ["dev"]`.
+## About the Project
 
-## 🛠️Hardware Development Workflow
-
-### **Pre-requisites**  
-1. Install **Node.js** and **npm**  
-   [https://docs.npmjs.com/downloading-and-installing-node-js-and-npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-
-2. Navigate to the broker directory ( From Project Root )
-   ```bash
-   cd ./infra/broker_mqtt
-   ```
-3. Install project dependencies  
-   ```bash
-   npm install
-   ```
-4. Install **PlatformIO Core (CLI)**:  
-   **MacOS**:
-   ```bash
-   brew install platformio
-   ```
-   **Windows & Linux**:  
-   [Installer Script (Recommended)](https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html)  
-   -or-  
-   [Python Package Manage](https://docs.platformio.org/en/latest/core/installation/methods/pypi.html)
-
-5. Install **Arduino CLI**:
-   [https://arduino.github.io/arduino-cli/0.32/installation/](https://arduino.github.io/arduino-cli/0.32/installation/)
-
-### **Dev-Steps**  
-
-1. **Update Network Config**  
-   - Open `./esp_client/data`
-   - Copy `config.env.example` to `config.env`
-   - Update your network and device credentials in `config.env`
-
-2. **Upload `config.env` into ESP32**  
-   - Navigate to `./esp_client/`
-   - Plug in your ESP32
-   - Run:
-     ```bash
-     pio run --target uploadfs
-     ```
-   > **Note:** To remove `config.env`:
-   > ```bash
-   > pio run -t erase
-   > # You will need to re-upload your code as well (this wipes the entire flash)
-   > ```
-
-3. **Run the MQTT Broker**  
-   From the project root, run:
-   ```bash
-   npx tsx ./infra/broker_mqtt/server.ts
-   ```
-4. **Develop Firmware**
-   Navigate to:
-   ```bash
-   ./esp_client/src
-   ```
-5. **Flash & Test**  
-   Reflash the ESP32 and test against your local broker.
-
-### Flashing & Monitoring
-
-```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 .
-
-arduino-cli upload --fqbn esp32:esp32:esp32 -p /dev/cu.usbserial-576D0499351 --upload-property upload.speed=460800 -v .
-
-arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
-```
-
-## 📡 Network Notes
-
-- Ensure your computer and the ESP32 are on the same WiFi network.
-- Default MQTT port: 1883
-
-## 📝 Setup Documentation
-
-For complete setup instructions, see the [Setup Guide on Google Docs](https://docs.google.com/document/d/1jFlQuHnFwy8aJPPMJ6DQvYgvtMj_6Ua5th_mMhYTuXo/edit?usp=sharing).
+University dormitories experience significant energy waste because many electronic devices remain plugged in and idle for extended periods of time. 
+Studies estimate that these energy vampires account for nearly 30% of unnecessary energy consumption in dormitory environments. 
+To address this issue, we developed ZotPlug, a smart outlet system designed to monitor and control energy usage at the individual outlet level. 
+ZotPlug measures real-time energy consumption using a dedicated power metering integrated circuit connected to an ESP32 microcontroller and transmits telemetry to a cloud-based platform.
+Through a dashboard application, we enabled users to visualize energy usage, remotely-control connected devices, and configure scheduling features that promote more efficient electricity use. 
+The platform also incorporated behavioral incentives that encourage students to reduce consumption through friendly competition and usage awareness. 
+Our experimental evaluation demonstrated that the system could obtain accurate measurements within 5% of the expected values across a wide range of device loads. 
+Ultimately, we showed that ZotPlug can provide reliable outlet-level energy monitoring and seamlessly integrated into a scalable cloud system with an intuitive user interface while supporting UC Irvine’s long-term sustainability goals.
 
 ## Diagrams & Architecture
-![Infra Diagram](diagrams/docker_network_diagram_v3.drawio.png)
 
-## Database ER Diagram
-<img width="1003" height="1239" alt="image" src="https://github.com/user-attachments/assets/83eaf5d1-e5f6-4749-84fb-0ae83baaea2e" />
+### Software
 
-## Auth Provision Workflow
-![Provision Workflow](diagrams/auth_prov_flow.png)
+#### Infrastructure
+![Infra Diagram](./images/infra.jpg)
 
-## Hardware Diagram
-![Hardware Schematic](diagrams/HW_SCHEMATIC_DIAGRAM.drawio_1.png)
+The system consists of a user-friendly web and mobile interface, a scalable cloud infrastructure, and server logic that allows ZotPlug devices to communicate with the backend server over MQTT.
 
+#### Authentication Provision
+![Provision Workflow](./images/auth_provision.jpg)
 
+Here is a breakdown of the authentication communication process for web and mobile users.
 
+#### Database
+![Database](./images/database.png)
+
+Here is an ER diagram of our server database. Users are mapped to ZotPlug devices and can interact with them in various ways.
+
+### Hardware
+
+![Hardware Schematic](./images/phase2_schematic.png)
+
+Our finalized circuit schematic utilized an ESP32, a dedicated metering IC, and a relay switch. This design served as the basis for our perfboard and PCB implementations.
+
+## Development
+Please see our [Getting Started](./SETUP.md) instructions.
