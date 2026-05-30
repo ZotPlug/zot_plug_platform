@@ -8,8 +8,8 @@ Welcome to ZotPlug! This is the server infrastructure and firmware for our smart
 
 ![ZotPlug Poster](./images/EECS%20159B%20-%20Final%20Project%20Poster.jpg)
 
-- The full resolution PDF version of the project poster can be found [here](https://drive.google.com/file/d/1YAu_NmLsX2b73EIh_0wYKdVRCQuiZaFI/view?usp=sharing).
-- The technical report for this project can be found [here](https://drive.google.com/file/d/1xXkfRifxrVSe8xIGHvAEyg9sbYb6Ol6m/view?usp=drive_link).
+- The Full Resolution PDF version of the project poster can be found [here](https://drive.google.com/file/d/1YAu_NmLsX2b73EIh_0wYKdVRCQuiZaFI/view?usp=sharing).
+- The CECS Technical Report for this project can be found [here](https://drive.google.com/file/d/1-i85gJRUpZhGmp5RH3hY3M24phBMnEef/view?usp=sharing).
 
 ## About the Project
 
